@@ -84,6 +84,17 @@ L'app mínima que valida la idea central.
 
 ---
 
-## Després de la v1.0 (idees, sense compromís)
+## Iteració 6 — Vídeo a les activitats (`v1.1`) — construïda
+
+**Abast:**
+- Detecció automàtica del tipus d'enllaç d'una activitat (sense canvis al model ni al formulari: s'aprofita el camp `url`).
+- **YouTube**: reproductor incrustat (`youtube-nocookie.com`, sense cookies fins que es reprodueix) dins la targeta de l'activitat, a la vista de sessió.
+- **Instagram**: enllaç intel·ligent «Obre el reel a Instagram» (decisió de l'usuari: sense l'script de seguiment de Meta, que no incrusta de veritat i només va amb contingut públic).
+- Altres enllaços: es mantenen com a «Veure la font». A la gestió del catàleg els enllaços són només text (llista lleugera); la incrustació és a la vista de sessió.
+- 1 test nou (anàlisi d'enllaços): 16/16 en verd.
+
+---
+
+## Després de la v1.1 (idees, sense compromís)
 
 Les de la secció 9 del brief que segueixen vives: variacions de descripcions amb LLM, estadístiques d'ús, export PDF, multi-perfil, recordatoris. (La sincronització via Airtable queda descartada: la cobreix Firebase des de la v0.3.) Es prioritzaran segons l'ús real.

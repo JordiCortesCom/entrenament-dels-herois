@@ -60,6 +60,8 @@ nav a.actiu{color:var(--primari-fosc);background:#efedfb}
 .test-ok{color:#27500a}
 .test-ko{color:var(--error);font-weight:600}
 .buit{text-align:center;color:var(--tinta-suau);padding:40px 10px}
+.video{position:relative;width:100%;aspect-ratio:16/9;margin:10px 0;border-radius:10px;overflow:hidden;background:#000}
+.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .cerca{width:100%;font:inherit;font-size:1.05rem;padding:10px 12px;border:2px solid var(--vora);border-radius:10px;margin:8px 0;background:var(--targeta)}
 .formulari input[type=text],.formulari input[type=url],.formulari textarea{width:100%;font:inherit;padding:8px 12px;border:2px solid var(--vora);border-radius:10px;margin:4px 0;background:var(--targeta)}
 .formulari textarea{min-height:70px;resize:vertical}
@@ -127,6 +129,43 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
+}
+
+function idYoutube(url) {
+  const patrons = [
+    /[?&]v=([A-Za-z0-9_-]{11})/,
+    /youtu\.be\/([A-Za-z0-9_-]{11})/,
+    /youtube\.com\/(?:embed|shorts|v|live)\/([A-Za-z0-9_-]{11})/
+  ];
+  for (const p of patrons) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+function analitzaEnllac(url) {
+  if (!url) return { tipus: 'cap' };
+  const yt = idYoutube(url);
+  if (yt) return { tipus: 'youtube', id: yt, url };
+  if (/(^|\.)instagram\.com\//i.test(url)) return { tipus: 'instagram', url };
+  return { tipus: 'altre', url };
+}
+function mediaHtml(url, incrusta) {
+  const info = analitzaEnllac(url);
+  if (info.tipus === 'youtube' && incrusta) {
+    return '<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/' + esc(info.id) +
+      '" title="Vídeo de l’activitat" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
+  }
+  if (info.tipus === 'youtube') {
+    return '<p class="detall"><a href="' + esc(info.url) + '" target="_blank" rel="noopener">▶ Vídeo de YouTube ↗</a></p>';
+  }
+  if (info.tipus === 'instagram') {
+    return '<p class="detall"><a href="' + esc(info.url) + '" target="_blank" rel="noopener">Obre el reel a Instagram ↗</a></p>';
+  }
+  if (info.tipus === 'altre') {
+    return '<p class="detall"><a href="' + esc(info.url) + '" target="_blank" rel="noopener">Veure la font ↗</a></p>';
+  }
+  return '';
 }
 
 /* ============================================================
@@ -588,7 +627,7 @@ function targetaActivitat(item, index) {
   html += chipsDims(item.dimensions);
   html += '<p>' + esc(a.descripcio) + '</p>';
   if (a.materials && a.materials !== 'cap') html += '<p class="detall">Materials: ' + esc(a.materials) + '</p>';
-  if (a.url) html += '<p class="detall"><a href="' + esc(a.url) + '" target="_blank" rel="noopener">Veure la font ↗</a></p>';
+  html += mediaHtml(a.url, true);
   html += '<button class="petit" data-canvia="' + index + '">↻ Canvia aquesta activitat</button>';
   html += '</div>';
   return html;
@@ -788,7 +827,7 @@ function pintaLlistaActivitats() {
     if (a.descripcio) h += '<p class="detall">' + esc(a.descripcio) + '</p>';
     h += '<p class="detall">Edats ' + a.edat_min + '-' + a.edat_max + ' · ' + a.intensitat + ' · ' + a.lloc.join(' i ') +
       (a.materials && a.materials !== 'cap' ? ' · Materials: ' + esc(a.materials) : '') + '</p>';
-    if (a.url) h += '<p class="detall"><a href="' + esc(a.url) + '" target="_blank" rel="noopener">Veure la font ↗</a></p>';
+    h += mediaHtml(a.url, false);
     h += '<div class="accions-fila"><button class="petit" data-edita="' + esc(a.id) + '">✎ Edita</button>';
     h += '<button class="petit perill" data-esborra-act="' + esc(a.id) + '">Esborra</button></div>';
     h += '</div>';
@@ -1179,6 +1218,20 @@ function executaTests() {
     asserta(generaIdUnic('Nova activitat', []) === 'nova-activitat', 'id base');
     const cataleg = [{ id: 'nova-activitat' }, { id: 'nova-activitat-2' }];
     asserta(generaIdUnic('Nova activitat', cataleg) === 'nova-activitat-3', 'col·lisió doble: ' + generaIdUnic('Nova activitat', cataleg));
+  });
+
+  prova('enllaços: detecció de YouTube, Instagram i genèrics', () => {
+    asserta(idYoutube('https://www.youtube.com/watch?v=dQw4w9WgXcQ') === 'dQw4w9WgXcQ', 'watch');
+    asserta(idYoutube('https://youtu.be/dQw4w9WgXcQ?t=30') === 'dQw4w9WgXcQ', 'youtu.be amb temps');
+    asserta(idYoutube('https://www.youtube.com/shorts/abc12345678') === 'abc12345678', 'shorts');
+    asserta(idYoutube('https://m.youtube.com/watch?feature=x&v=dQw4w9WgXcQ') === 'dQw4w9WgXcQ', 'v no inicial');
+    asserta(idYoutube('https://exemple.com/video') === null, 'no-youtube retorna null');
+    asserta(analitzaEnllac('https://www.instagram.com/reel/CxYz123/').tipus === 'instagram', 'instagram reel');
+    asserta(analitzaEnllac('https://exemple.com/joc').tipus === 'altre', 'enllaç genèric');
+    asserta(analitzaEnllac('').tipus === 'cap', 'sense enllaç');
+    asserta(/youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/.test(mediaHtml('https://youtu.be/dQw4w9WgXcQ', true)), 'incrusta el reproductor de YouTube');
+    asserta(mediaHtml('https://youtu.be/dQw4w9WgXcQ', false).indexOf('<iframe') === -1, 'sense incrustar no posa iframe');
+    asserta(mediaHtml('https://www.instagram.com/reel/CxYz123/', true).indexOf('<iframe') === -1, 'Instagram mai incrusta iframe');
   });
 
   prova('còpia de seguretat: validació del fitxer', () => {

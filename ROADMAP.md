@@ -7,7 +7,7 @@ Procés iteratiu: cada iteració acaba amb una app **funcional i usable**, es va
 - **`main` sempre funcional**: cada commit a `main` deixa l'app en estat usable.
 - **Commits petits i freqüents**, un canvi lògic per commit.
 - **Un tag per iteració tancada**: `v0.1`, `v0.2`... El tag només es posa quan la validació de la iteració ha passat.
-- **Porta de qualitat abans de cada tag**: la bateria de tests d'invariants del generador (`tests.html`, sense dependències, s'obre al navegador i mostra verd/vermell) ha de passar sencera, a més de la validació d'ús real. Els tests creixen amb cada iteració.
+- **Porta de qualitat abans de cada tag**: la bateria de tests d'invariants del generador (integrada a l'app com a ruta oculta `#/tests`, sense dependències, mostra verd/vermell al navegador) ha de passar sencera, a més de la validació d'ús real. Els tests creixen amb cada iteració.
 - **Branques curtes opcionals** per a increments grossos; per a canvis petits es treballa directament a `main` (projecte d'una sola persona).
 - **GitHub Pages** publica `main` des de la iteració 1, perquè la validació real es fa al mòbil.
 - La validació de cada iteració és **ús real amb els nens**, no només proves tècniques. Si la validació revela problemes, es corregeixen abans de passar a la següent iteració.
@@ -29,7 +29,7 @@ L'app mínima que valida la idea central.
 - Generador: càlcul de blocs, filtres (edat per dates de naixement, lloc, intensitat acumulativa), regla dels 5 minuts amb descart de dimensió (a l'atzar de moment, sense historial encara), aleatorietat real, ajust final de temps, missatge clar si falten activitats.
 - Pantalla **Generar** (durada, lloc, intensitat, botó gros) i pantalla **Sessió** (tres blocs, substituir activitat, regenerar).
 - Pantalla **Paràmetres** mínima: dates de naixement dels fills.
-- `tests.html`: tests d'invariants del generador (les tres dimensions cobertes o descart explícit, cap activitat duplicada dins la sessió, minuts dins del rang de cada activitat, filtres d'edat/lloc/intensitat respectats, error clar quan el catàleg no dona per una combinació).
+- Tests d'invariants del generador a la ruta `#/tests` (les tres dimensions cobertes o descart explícit, cap activitat duplicada dins la sessió, minuts dins del rang de cada activitat, filtres d'edat/lloc/intensitat respectats, error clar quan el catàleg no dona per una combinació).
 - Publicació a GitHub Pages.
 
 **Fora del MVP:** historial i no-repetició, CRUD d'activitats, import/export, offline.

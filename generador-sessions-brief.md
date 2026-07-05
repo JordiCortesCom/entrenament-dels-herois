@@ -95,7 +95,7 @@ Cada sessió de l'historial guarda les dimensions realment treballades i els min
   "activitats": [
     { "id": "resp-flor", "bloc": "obertura", "dimensions": ["espiritual"], "minuts": 3 }
   ],
-  "dimensio_descartada": null
+  "dimensions_descartades": []
 }
 ```
 

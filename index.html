@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrenament dels herois</title>
+<style>
+:root{
+  --fons:#faf7f1; --tinta:#2c2c2a; --tinta-suau:#6b6a63;
+  --primari:#5346b0; --primari-fosc:#3f3590;
+  --mental:#0c447c; --mental-fons:#e6f1fb;
+  --fisic:#712b13; --fisic-fons:#faece7;
+  --espiritual:#085041; --espiritual-fons:#e1f5ee;
+  --targeta:#ffffff; --vora:#e5dfd3; --error:#a32d2d; --error-fons:#fcebeb;
+  --radi:14px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--fons);color:var(--tinta);font-size:17px;line-height:1.5}
+#app{max-width:640px;margin:0 auto;padding:16px 16px 100px}
+h1{font-size:1.45rem;margin:8px 0 16px}
+h2{font-size:1.05rem;margin:18px 0 8px;color:var(--tinta-suau);font-weight:600}
+h3{font-size:1.2rem;margin:4px 0 6px}
+p{margin:6px 0}
+a{color:var(--primari)}
+button{font:inherit;cursor:pointer;border:none;border-radius:var(--radi)}
+.targeta{background:var(--targeta);border:1px solid var(--vora);border-radius:var(--radi);padding:16px;margin:12px 0}
+.segments{display:flex;flex-wrap:wrap;gap:8px}
+.segments button{min-height:52px;padding:10px 16px;background:var(--targeta);border:2px solid var(--vora);border-radius:var(--radi);font-size:1.05rem;flex:1 1 auto}
+.segments button.actiu{border-color:var(--primari);background:#efedfb;color:var(--primari-fosc);font-weight:600}
+.durada-lliure{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--tinta-suau)}
+.durada-lliure input{width:90px;min-height:48px;font:inherit;font-size:1.1rem;padding:6px 10px;border:2px solid var(--vora);border-radius:10px;text-align:center}
+.gran{width:100%;min-height:64px;padding:16px;font-size:1.3rem;font-weight:600;background:var(--primari);color:#fff;margin-top:20px}
+.gran:active{background:var(--primari-fosc)}
+.secundari{width:100%;min-height:52px;padding:12px;font-size:1.05rem;background:var(--targeta);border:2px solid var(--vora);color:var(--tinta);margin-top:10px}
+.petit{min-height:44px;padding:8px 14px;font-size:.95rem;background:var(--fons);border:1.5px solid var(--vora);color:var(--tinta-suau)}
+.perill{color:var(--error);border-color:#f0c5c5}
+.bloc-cap{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.bloc-tipus{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tinta-suau)}
+.minuts{font-weight:700;color:var(--primari-fosc);white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{font-size:.85rem;font-weight:600;padding:4px 12px;border-radius:999px}
+.chip-mental{background:var(--mental-fons);color:var(--mental)}
+.chip-fisic{background:var(--fisic-fons);color:var(--fisic)}
+.chip-espiritual{background:var(--espiritual-fons);color:var(--espiritual)}
+.detall{font-size:.95rem;color:var(--tinta-suau);margin:4px 0}
+.avis{background:#faeeda;color:#633806;border-radius:var(--radi);padding:12px 16px;margin:12px 0}
+.error-caixa{background:var(--error-fons);color:var(--error);border-radius:var(--radi);padding:12px 16px;margin:12px 0}
+.fila-fill{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.fila-fill input[type=text]{flex:1 1 120px;min-width:100px}
+.fila-fill input{font:inherit;min-height:48px;padding:6px 10px;border:2px solid var(--vora);border-radius:10px}
+.camp-num{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
+.camp-num input{width:90px;min-height:48px;font:inherit;font-size:1.05rem;padding:6px 10px;border:2px solid var(--vora);border-radius:10px;text-align:center}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--targeta);border-top:1px solid var(--vora);display:flex;justify-content:space-around;padding:6px 0 max(6px, env(safe-area-inset-bottom))}
+nav a{flex:1;text-align:center;padding:12px 4px;text-decoration:none;color:var(--tinta-suau);font-size:1rem;font-weight:600;border-radius:10px;margin:0 6px}
+nav a.actiu{color:var(--primari-fosc);background:#efedfb}
+#toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);background:var(--tinta);color:#fff;padding:12px 20px;border-radius:999px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center}
+#toast.visible{opacity:1}
+.test-ok{color:#27500a}
+.test-ko{color:var(--error);font-weight:600}
+.buit{text-align:center;color:var(--tinta-suau);padding:40px 10px}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<nav>
+  <a href="#/generar" data-ruta="/generar">Genera</a>
+  <a href="#/sessio" data-ruta="/sessio">Sessió</a>
+  <a href="#/parametres" data-ruta="/parametres">Paràmetres</a>
+</nav>
+<div id="toast"></div>
+<script>
+'use strict';
+
+/* ============================================================
+   1. UTILITATS
+   ============================================================ */
+const DIMENSIONS = ['mental', 'fisic', 'espiritual'];
+const NOM_DIM = { mental: 'Mental', fisic: 'Físic', espiritual: 'Espiritual' };
+const NOM_BLOC = { obertura: 'Obertura', nucli: 'Nucli', tancament: 'Tancament' };
+const MIN_ACTIVITAT_NUCLI = 5;
+
+function atzar() {
+  const b = new Uint32Array(1);
+  crypto.getRandomValues(b);
+  return b[0] / 4294967296;
+}
+function enterAtzar(n) { return Math.floor(atzar() * n); }
+function baralla(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = enterAtzar(i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function triaPonderada(items, pesDe) {
+  const pesos = items.map(pesDe);
+  const total = pesos.reduce((s, p) => s + p, 0);
+  let r = atzar() * total;
+  for (let i = 0; i < items.length; i++) {
+    r -= pesos[i];
+    if (r < 0) return items[i];
+  }
+  return items[items.length - 1];
+}
+function limita(v, min, max) { return Math.max(min, Math.min(max, v)); }
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+/* ============================================================
+   2. CATÀLEG D'EXEMPLE
+   ============================================================ */
+const CATALEG_EXEMPLE = [
+  { id: 'resp-flor', nom: 'Respiració de la flor', descripcio: 'Inspira imaginant que olores una flor, expira bufant espelmes molt a poc a poc.', url: '', dimensions: ['espiritual', 'mental'], funcio: ['obertura', 'tancament'], durada_min: 3, durada_max: 7, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 12, materials: 'cap' },
+  { id: 'ioga-animals', nom: 'Ioga dels animals', descripcio: 'Postures imitant animals: el gat, la cobra, el gos, la papallona. Cada nen en proposa una.', url: '', dimensions: ['fisic', 'espiritual'], funcio: ['obertura', 'nucli'], durada_min: 5, durada_max: 15, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 12, materials: 'estora o manta (opcional)' },
+  { id: 'circuit-obstacles', nom: 'Circuit d’obstacles', descripcio: 'Munteu un recorregut amb coixins, cadires i cordes: saltar, gatejar, esquivar, mantenir l’equilibri.', url: '', dimensions: ['fisic'], funcio: ['nucli'], durada_min: 8, durada_max: 20, intensitat: 'intensa', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 12, materials: 'coixins, cadires, corda' },
+  { id: 'memory-parelles', nom: 'Memory de parelles', descripcio: 'Joc de memòria amb cartes girades: qui troba més parelles? Variant: recordar on era una carta concreta.', url: '', dimensions: ['mental'], funcio: ['nucli'], durada_min: 5, durada_max: 15, intensitat: 'suau', lloc: ['interior'], edat_min: 3, edat_max: 9, materials: 'joc de memory o baralla de cartes' },
+  { id: 'cacera-tresor', nom: 'Cacera del tresor', descripcio: 'Amaga objectes i dona pistes senzilles (fred/calent, enigmes curts). Els nens busquen en equip.', url: '', dimensions: ['mental', 'fisic'], funcio: ['nucli'], durada_min: 10, durada_max: 25, intensitat: 'mitjana', lloc: ['interior', 'exterior'], edat_min: 4, edat_max: 12, materials: 'petits objectes per amagar' },
+  { id: 'pot-gratitud', nom: 'El pot de la gratitud', descripcio: 'Cadascú diu (o dibuixa) una cosa bona del dia i la fiquem en un pot. De tant en tant les rellegim.', url: '', dimensions: ['espiritual'], funcio: ['nucli', 'tancament'], durada_min: 5, durada_max: 10, intensitat: 'suau', lloc: ['interior'], edat_min: 4, edat_max: 12, materials: 'pot i papers' },
+  { id: 'ball-estatues', nom: 'Ball de les estàtues', descripcio: 'Música i ball lliure; quan la música para, tothom queda immòbil com una estàtua.', url: '', dimensions: ['fisic'], funcio: ['obertura', 'nucli'], durada_min: 5, durada_max: 12, intensitat: 'mitjana', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 10, materials: 'música' },
+  { id: 'endevina-so', nom: 'Endevina el so', descripcio: 'Ulls tancats i escolta atenta: quins sons sentim? Qui n’identifica més? Acaba amb un minut de silenci.', url: '', dimensions: ['mental', 'espiritual'], funcio: ['obertura'], durada_min: 3, durada_max: 8, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 12, materials: 'cap' },
+  { id: 'estiraments-nuvol', nom: 'Estiraments del núvol', descripcio: 'Estiraments suaus imaginant que som núvols que es desfan: braços amunt, costats, tocar-se els peus.', url: '', dimensions: ['fisic', 'espiritual'], funcio: ['tancament'], durada_min: 3, durada_max: 8, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 12, materials: 'cap' },
+  { id: 'conte-cooperatiu', nom: 'Conte cooperatiu', descripcio: 'Inventem un conte entre tots: cadascú afegeix una frase. Variant: amb personatges sortejats.', url: '', dimensions: ['mental'], funcio: ['nucli', 'tancament'], durada_min: 5, durada_max: 15, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 4, edat_max: 12, materials: 'cap' }
+];
+
+/* ============================================================
+   3. EMMAGATZEMATGE (localStorage, clau versionada)
+   ============================================================ */
+const CLAU = 'herois.v1';
+function dadesInicials() {
+  return {
+    versio: 1,
+    parametres: { fills: [], dies_exclusio: 7, dies_penalitzacio: 21 },
+    cataleg: CATALEG_EXEMPLE.slice(),
+    historial: []
+  };
+}
+function dadesValides(d) {
+  return d && d.versio === 1 && Array.isArray(d.cataleg) &&
+    Array.isArray(d.historial) && d.parametres && Array.isArray(d.parametres.fills);
+}
+function carrega() {
+  try {
+    const brut = localStorage.getItem(CLAU);
+    if (!brut) return dadesInicials();
+    const d = JSON.parse(brut);
+    return dadesValides(d) ? d : dadesInicials();
+  } catch (e) {
+    return dadesInicials();
+  }
+}
+function desa() {
+  const text = JSON.stringify(dades);
+  JSON.parse(text);
+  localStorage.setItem(CLAU, text);
+}
+let dades = carrega();
+
+/* ============================================================
+   4. GENERADOR (funcions pures: no toquen DOM ni localStorage)
+   ============================================================ */
+function edatAnys(naixement, ara) {
+  const n = new Date(naixement + 'T00:00:00');
+  let anys = ara.getFullYear() - n.getFullYear();
+  const m = ara.getMonth() - n.getMonth();
+  if (m < 0 || (m === 0 && ara.getDate() < n.getDate())) anys--;
+  return anys;
+}
+function rangEdats(fills, ara) {
+  const edats = fills.filter(f => f.naixement).map(f => edatAnys(f.naixement, ara));
+  if (!edats.length) return null;
+  return { min: Math.min(...edats), max: Math.max(...edats) };
+}
+function nivellsPermesos(intensitat) {
+  return { suau: ['suau'], normal: ['suau', 'mitjana'], intensa: ['suau', 'mitjana', 'intensa'] }[intensitat];
+}
+function activitatCompatible(a, ctx) {
+  return a.edat_min <= ctx.edats.min && a.edat_max >= ctx.edats.max &&
+    (ctx.lloc === 'qualsevol' || a.lloc.includes(ctx.lloc)) &&
+    ctx.nivells.includes(a.intensitat);
+}
+function calculaBlocs(durada) {
+  const obertura = Math.max(3, Math.round(durada * 0.10));
+  const tancament = Math.max(3, Math.round(durada * 0.10));
+  return { obertura, tancament, nucli: durada - obertura - tancament };
+}
+function errorSessio(missatge) { return { ok: false, error: missatge }; }
+
+function generaSessio(peticio, cataleg, parametres, opcions) {
+  const ara = (opcions && opcions.ara) || new Date();
+  const edats = rangEdats(parametres.fills, ara);
+  if (!edats) return errorSessio('Abans de generar cal indicar les dates de naixement dels fills a Paràmetres.');
+  if (!cataleg.length) return errorSessio('El catàleg és buit. Afegeix activitats per poder generar sessions.');
+
+  const ctx = { edats, lloc: peticio.lloc, nivells: nivellsPermesos(peticio.intensitat) };
+  const base = cataleg.filter(a => activitatCompatible(a, ctx));
+  if (!base.length) return errorSessio('Cap activitat del catàleg encaixa amb aquests filtres (edats ' + edats.min + '-' + edats.max + ', ' + peticio.lloc + ', ' + peticio.intensitat + '). Prova amb altres opcions o afegeix activitats.');
+
+  const blocs = calculaBlocs(peticio.durada);
+  let dims = baralla(DIMENSIONS);
+  const descartades = [];
+  while (blocs.nucli / dims.length < MIN_ACTIVITAT_NUCLI && dims.length > 1) {
+    descartades.push(dims.pop());
+  }
+  if (blocs.nucli / dims.length < MIN_ACTIVITAT_NUCLI) {
+    return errorSessio('La sessió és massa curta per fer un nucli amb sentit. Tria una durada d’almenys 12 minuts.');
+  }
+  const tempsDim = blocs.nucli / dims.length;
+
+  const usats = new Set();
+  const activitats = [];
+
+  for (const dim of dims) {
+    const cands = base.filter(a =>
+      a.funcio.includes('nucli') && a.dimensions.includes(dim) &&
+      !usats.has(a.id) && a.durada_min <= tempsDim);
+    if (cands.length) {
+      const a = cands[enterAtzar(cands.length)];
+      usats.add(a.id);
+      activitats.push({ activitat: a, bloc: 'nucli', dimensions: [dim], minuts: limita(Math.round(tempsDim), a.durada_min, a.durada_max) });
+    } else {
+      const amfitrio = activitats.find(x => x.bloc === 'nucli' && x.activitat.dimensions.includes(dim));
+      if (!amfitrio) {
+        return errorSessio('No hi ha cap activitat de nucli compatible per a la dimensió ' + NOM_DIM[dim].toLowerCase() + ' amb aquests filtres. Afegeix-ne al catàleg o canvia les opcions.');
+      }
+      amfitrio.dimensions.push(dim);
+      amfitrio.minuts = limita(amfitrio.minuts + Math.round(tempsDim), amfitrio.activitat.durada_min, amfitrio.activitat.durada_max);
+    }
+  }
+
+  const dimsPrioritaries = new Set(descartades);
+  function triaExtrem(funcio, temps) {
+    const cands = base.filter(a => a.funcio.includes(funcio) && !usats.has(a.id) && a.durada_min <= temps);
+    if (!cands.length) return null;
+    const a = triaPonderada(cands, c => c.dimensions.some(d => dimsPrioritaries.has(d)) ? 3 : 1);
+    usats.add(a.id);
+    return { activitat: a, bloc: funcio, dimensions: a.dimensions.slice(), minuts: limita(temps, a.durada_min, a.durada_max) };
+  }
+  const obertura = triaExtrem('obertura', blocs.obertura);
+  if (!obertura) return errorSessio('No hi ha cap activitat d’obertura compatible amb aquests filtres. Afegeix-ne al catàleg o canvia les opcions.');
+  const tancament = triaExtrem('tancament', blocs.tancament);
+  if (!tancament) return errorSessio('No hi ha cap activitat de tancament compatible amb aquests filtres. Afegeix-ne al catàleg o canvia les opcions.');
+
+  const totes = [obertura, ...activitats, tancament];
+  ajustaTemps(totes, peticio.durada);
+
+  return {
+    ok: true,
+    sessio: {
+      creada: ara.toISOString(),
+      peticio: { durada: peticio.durada, lloc: peticio.lloc, intensitat: peticio.intensitat },
+      dimensions_descartades: descartades,
+      activitats: totes
+    }
+  };
+}
+
+function ajustaTemps(activitats, objectiu) {
+  let total = activitats.reduce((s, x) => s + x.minuts, 0);
+  let guarda = 200;
+  while (total !== objectiu && guarda-- > 0) {
+    const pas = objectiu > total ? 1 : -1;
+    const mobils = activitats.filter(x => pas > 0
+      ? x.minuts < x.activitat.durada_max
+      : x.minuts > x.activitat.durada_min);
+    if (!mobils.length) break;
+    const triada = mobils.find(x => x.bloc === 'nucli') || mobils[0];
+    triada.minuts += pas;
+    total += pas;
+  }
+}
+
+function substitueixActivitat(sessio, index, cataleg, parametres, opcions) {
+  const ara = (opcions && opcions.ara) || new Date();
+  const edats = rangEdats(parametres.fills, ara);
+  if (!edats) return null;
+  const ctx = { edats, lloc: sessio.peticio.lloc, nivells: nivellsPermesos(sessio.peticio.intensitat) };
+  const actual = sessio.activitats[index];
+  const idsSessio = new Set(sessio.activitats.map(x => x.activitat.id));
+  const cands = cataleg.filter(a =>
+    activitatCompatible(a, ctx) && !idsSessio.has(a.id) &&
+    a.funcio.includes(actual.bloc) && a.durada_min <= actual.minuts &&
+    (actual.bloc !== 'nucli' || actual.dimensions.every(d => a.dimensions.includes(d))));
+  if (!cands.length) return null;
+  const a = cands[enterAtzar(cands.length)];
+  sessio.activitats[index] = {
+    activitat: a, bloc: actual.bloc,
+    dimensions: actual.bloc === 'nucli' ? actual.dimensions.slice() : a.dimensions.slice(),
+    minuts: limita(actual.minuts, a.durada_min, a.durada_max)
+  };
+  ajustaTemps(sessio.activitats, sessio.peticio.durada);
+  return sessio;
+}
+
+/* ============================================================
+   5. INTERFÍCIE
+   ============================================================ */
+const app = document.getElementById('app');
+let sessioActual = null;
+const prefs = { durada: 30, lloc: 'qualsevol', intensitat: 'normal' };
+
+function toast(missatge) {
+  const t = document.getElementById('toast');
+  t.textContent = missatge;
+  t.classList.add('visible');
+  clearTimeout(t._temp);
+  t._temp = setTimeout(() => t.classList.remove('visible'), 2600);
+}
+
+function chipsDims(dims) {
+  return '<div class="chips">' + dims.map(d =>
+    '<span class="chip chip-' + d + '">' + NOM_DIM[d] + '</span>').join('') + '</div>';
+}
+
+function targetaActivitat(item, index) {
+  const a = item.activitat;
+  let html = '<div class="targeta">';
+  html += '<div class="bloc-cap"><span class="bloc-tipus">' + NOM_BLOC[item.bloc] + '</span>';
+  html += '<span class="minuts">' + item.minuts + ' min</span></div>';
+  html += '<h3>' + esc(a.nom) + '</h3>';
+  html += chipsDims(item.dimensions);
+  html += '<p>' + esc(a.descripcio) + '</p>';
+  if (a.materials && a.materials !== 'cap') html += '<p class="detall">Materials: ' + esc(a.materials) + '</p>';
+  if (a.url) html += '<p class="detall"><a href="' + esc(a.url) + '" target="_blank" rel="noopener">Veure la font ↗</a></p>';
+  html += '<button class="petit" data-canvia="' + index + '">↻ Canvia aquesta activitat</button>';
+  html += '</div>';
+  return html;
+}
+
+function vistaGenerar() {
+  const teFills = dades.parametres.fills.some(f => f.naixement);
+  const duradesRapides = [15, 30, 45, 60];
+  let html = '<h1>⚡ Entrenament dels herois</h1>';
+  if (!teFills) {
+    html += '<div class="avis">Primer pas: indica les dates de naixement dels teus fills a <a href="#/parametres">Paràmetres</a>.</div>';
+  }
+  html += '<h2>Quanta estona teniu?</h2><div class="segments" id="seg-durada">';
+  for (const d of duradesRapides) {
+    html += '<button data-durada="' + d + '"' + (prefs.durada === d ? ' class="actiu"' : '') + '>' + d + ' min</button>';
+  }
+  html += '</div>';
+  html += '<div class="durada-lliure"><label for="durada-lliure">O una altra durada:</label>';
+  html += '<input id="durada-lliure" type="number" min="12" max="180" value="' + (duradesRapides.includes(prefs.durada) ? '' : prefs.durada) + '"> min</div>';
+
+  html += '<h2>On sereu?</h2><div class="segments" id="seg-lloc">';
+  for (const [valor, nom] of [['interior', 'Interior'], ['exterior', 'Exterior'], ['qualsevol', 'Qualsevol']]) {
+    html += '<button data-lloc="' + valor + '"' + (prefs.lloc === valor ? ' class="actiu"' : '') + '>' + nom + '</button>';
+  }
+  html += '</div>';
+
+  html += '<h2>Intensitat</h2><div class="segments" id="seg-intensitat">';
+  for (const [valor, nom] of [['suau', 'Suau'], ['normal', 'Normal'], ['intensa', 'Intensa']]) {
+    html += '<button data-intensitat="' + valor + '"' + (prefs.intensitat === valor ? ' class="actiu"' : '') + '>' + nom + '</button>';
+  }
+  html += '</div>';
+
+  html += '<button class="gran" id="btn-genera">Genera sessió</button>';
+  html += '<div id="lloc-error"></div>';
+  app.innerHTML = html;
+
+  app.querySelector('#seg-durada').addEventListener('click', e => {
+    const b = e.target.closest('button[data-durada]');
+    if (!b) return;
+    prefs.durada = Number(b.dataset.durada);
+    vistaGenerar();
+  });
+  app.querySelector('#durada-lliure').addEventListener('change', e => {
+    const v = Number(e.target.value);
+    if (v >= 12 && v <= 180) {
+      prefs.durada = v;
+      vistaGenerar();
+    }
+  });
+  app.querySelector('#seg-lloc').addEventListener('click', e => {
+    const b = e.target.closest('button[data-lloc]');
+    if (!b) return;
+    prefs.lloc = b.dataset.lloc;
+    vistaGenerar();
+  });
+  app.querySelector('#seg-intensitat').addEventListener('click', e => {
+    const b = e.target.closest('button[data-intensitat]');
+    if (!b) return;
+    prefs.intensitat = b.dataset.intensitat;
+    vistaGenerar();
+  });
+  app.querySelector('#btn-genera').addEventListener('click', () => {
+    const r = generaSessio(prefs, dades.cataleg, dades.parametres);
+    if (!r.ok) {
+      app.querySelector('#lloc-error').innerHTML = '<div class="error-caixa">' + esc(r.error) + '</div>';
+      return;
+    }
+    sessioActual = r.sessio;
+    location.hash = '#/sessio';
+  });
+}
+
+function vistaSessio() {
+  if (!sessioActual) {
+    app.innerHTML = '<h1>Sessió</h1><div class="buit"><p>Encara no hi ha cap sessió generada.</p>' +
+      '<p><a href="#/generar">Genera’n una →</a></p></div>';
+    return;
+  }
+  const s = sessioActual;
+  const total = s.activitats.reduce((sum, x) => sum + x.minuts, 0);
+  let html = '<h1>La sessió d’avui · ' + total + ' min</h1>';
+  if (total !== s.peticio.durada) {
+    html += '<div class="avis">Amb el catàleg actual la sessió queda de ' + total + ' min (n’havies demanat ' + s.peticio.durada + ').</div>';
+  }
+  if (s.dimensions_descartades.length) {
+    html += '<div class="avis">Sessió curta: avui deixem la dimensió ' +
+      s.dimensions_descartades.map(d => NOM_DIM[d].toLowerCase()).join(' i ') + ' per a la propera.</div>';
+  }
+  s.activitats.forEach((item, i) => { html += targetaActivitat(item, i); });
+  html += '<button class="gran" id="btn-feta">✔ Marca com a feta</button>';
+  html += '<button class="secundari" id="btn-regenera">↻ Regenera la sessió sencera</button>';
+  app.innerHTML = html;
+
+  app.addEventListener('click', gestorSessio);
+  function gestorSessio(e) {
+    const canvia = e.target.closest('button[data-canvia]');
+    if (canvia) {
+      app.removeEventListener('click', gestorSessio);
+      const nova = substitueixActivitat(sessioActual, Number(canvia.dataset.canvia), dades.cataleg, dades.parametres);
+      if (!nova) toast('No hi ha cap alternativa compatible per a aquesta activitat.');
+      vistaSessio();
+      return;
+    }
+    if (e.target.closest('#btn-regenera')) {
+      app.removeEventListener('click', gestorSessio);
+      const r = generaSessio(sessioActual.peticio, dades.cataleg, dades.parametres);
+      if (r.ok) sessioActual = r.sessio; else toast(r.error);
+      vistaSessio();
+      return;
+    }
+    if (e.target.closest('#btn-feta')) {
+      app.removeEventListener('click', gestorSessio);
+      dades.historial.push({
+        data: new Date().toISOString(),
+        durada: total,
+        activitats: s.activitats.map(x => ({ id: x.activitat.id, bloc: x.bloc, dimensions: x.dimensions, minuts: x.minuts })),
+        dimensions_descartades: s.dimensions_descartades
+      });
+      desa();
+      sessioActual = null;
+      location.hash = '#/generar';
+      toast('Sessió guardada. Bona feina, herois! 💪');
+    }
+  }
+}
+
+function vistaParametres() {
+  const ara = new Date();
+  let html = '<h1>Paràmetres</h1>';
+  html += '<h2>Els teus herois</h2><p class="detall">El nom és opcional (pot ser un àlies). La data de naixement serveix per triar activitats adequades a les edats.</p>';
+  html += '<div class="targeta" id="llista-fills">';
+  dades.parametres.fills.forEach((f, i) => {
+    const edat = f.naixement ? edatAnys(f.naixement, ara) : null;
+    html += '<div class="fila-fill">';
+    html += '<input type="text" placeholder="Nom (opcional)" value="' + esc(f.nom || '') + '" data-camp="nom" data-i="' + i + '">';
+    html += '<input type="date" value="' + esc(f.naixement || '') + '" data-camp="naixement" data-i="' + i + '">';
+    html += edat !== null ? '<span class="detall">' + edat + ' anys</span>' : '';
+    html += '<button class="petit perill" data-esborra="' + i + '">Esborra</button>';
+    html += '</div>';
+  });
+  if (!dades.parametres.fills.length) html += '<p class="detall">Encara no hi ha cap fill afegit.</p>';
+  html += '<button class="secundari" id="btn-afegeix-fill">+ Afegeix un fill</button>';
+  html += '</div>';
+
+  html += '<h2>No-repetició</h2><div class="targeta">';
+  html += '<p class="detall">S’activarà a la v0.2, quan l’app tingui historial. Els valors ja es poden configurar.</p>';
+  html += '<div class="camp-num"><label for="dies-exclusio">Dies sense repetir una activitat</label><input id="dies-exclusio" type="number" min="0" max="60" value="' + dades.parametres.dies_exclusio + '"></div>';
+  html += '<div class="camp-num"><label for="dies-penalitzacio">Dies amb menys probabilitat de sortir</label><input id="dies-penalitzacio" type="number" min="0" max="120" value="' + dades.parametres.dies_penalitzacio + '"></div>';
+  html += '</div>';
+  app.innerHTML = html;
+
+  app.querySelector('#llista-fills').addEventListener('change', e => {
+    const inp = e.target.closest('input[data-camp]');
+    if (!inp) return;
+    dades.parametres.fills[Number(inp.dataset.i)][inp.dataset.camp] = inp.value;
+    desa();
+    vistaParametres();
+  });
+  app.querySelector('#llista-fills').addEventListener('click', e => {
+    const esb = e.target.closest('button[data-esborra]');
+    if (esb) {
+      const i = Number(esb.dataset.esborra);
+      const f = dades.parametres.fills[i];
+      if (confirm('Segur que vols esborrar ' + (f.nom || 'aquest fill') + '?')) {
+        dades.parametres.fills.splice(i, 1);
+        desa();
+        vistaParametres();
+      }
+      return;
+    }
+    if (e.target.closest('#btn-afegeix-fill')) {
+      dades.parametres.fills.push({ nom: '', naixement: '' });
+      desa();
+      vistaParametres();
+    }
+  });
+  app.querySelector('#dies-exclusio').addEventListener('change', e => {
+    dades.parametres.dies_exclusio = Number(e.target.value);
+    desa();
+  });
+  app.querySelector('#dies-penalitzacio').addEventListener('change', e => {
+    dades.parametres.dies_penalitzacio = Number(e.target.value);
+    desa();
+  });
+}
+
+/* ============================================================
+   6. TESTS D'INVARIANTS (ruta oculta #/tests)
+   ============================================================ */
+function executaTests() {
+  const resultats = [];
+  function prova(nom, fn) {
+    try { fn(); resultats.push({ nom, ok: true }); }
+    catch (e) { resultats.push({ nom, ok: false, detall: e.message }); }
+  }
+  function asserta(cond, msg) { if (!cond) throw new Error(msg); }
+  function naixementPerEdat(anys) {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - anys);
+    d.setMonth(d.getMonth() - 2);
+    return d.toISOString().slice(0, 10);
+  }
+  const paramsProva = {
+    fills: [{ nom: 'A', naixement: naixementPerEdat(4) }, { nom: 'B', naixement: naixementPerEdat(8) }],
+    dies_exclusio: 7, dies_penalitzacio: 21
+  };
+
+  prova('calculaBlocs reparteix bé el temps', () => {
+    const b30 = calculaBlocs(30);
+    asserta(b30.obertura === 3 && b30.tancament === 3 && b30.nucli === 24, '30 min: ' + JSON.stringify(b30));
+    const b15 = calculaBlocs(15);
+    asserta(b15.obertura === 3 && b15.nucli === 9, '15 min: ' + JSON.stringify(b15));
+    const b60 = calculaBlocs(60);
+    asserta(b60.obertura === 6 && b60.nucli === 48, '60 min: ' + JSON.stringify(b60));
+  });
+
+  prova('intensitat acumulativa', () => {
+    asserta(JSON.stringify(nivellsPermesos('suau')) === '["suau"]', 'suau');
+    asserta(JSON.stringify(nivellsPermesos('normal')) === '["suau","mitjana"]', 'normal');
+    asserta(nivellsPermesos('intensa').length === 3, 'intensa');
+  });
+
+  prova('edats calculades des de dates de naixement', () => {
+    const r = rangEdats(paramsProva.fills, new Date());
+    asserta(r.min === 4 && r.max === 8, 'rang: ' + JSON.stringify(r));
+    asserta(rangEdats([], new Date()) === null, 'sense fills ha de ser null');
+  });
+
+  prova('errors clars: sense fills, catàleg buit, sessió massa curta', () => {
+    const senseFills = generaSessio({ durada: 30, lloc: 'qualsevol', intensitat: 'normal' }, CATALEG_EXEMPLE, { fills: [] });
+    asserta(!senseFills.ok && senseFills.error.includes('Paràmetres'), 'sense fills');
+    const catBuit = generaSessio({ durada: 30, lloc: 'qualsevol', intensitat: 'normal' }, [], paramsProva);
+    asserta(!catBuit.ok, 'catàleg buit');
+    const curta = generaSessio({ durada: 8, lloc: 'qualsevol', intensitat: 'normal' }, CATALEG_EXEMPLE, paramsProva);
+    asserta(!curta.ok && curta.error.includes('curta'), 'massa curta');
+  });
+
+  const combos = [];
+  for (const durada of [12, 15, 20, 30, 45, 60])
+    for (const lloc of ['interior', 'exterior', 'qualsevol'])
+      for (const intensitat of ['suau', 'normal', 'intensa'])
+        combos.push({ durada, lloc, intensitat });
+
+  prova('invariants del generador (' + combos.length * 5 + ' sessions)', () => {
+    for (const peticio of combos) {
+      for (let rep = 0; rep < 5; rep++) {
+        const r = generaSessio(peticio, CATALEG_EXEMPLE, paramsProva);
+        const etiqueta = JSON.stringify(peticio);
+        asserta(r.ok, 'ha fallat ' + etiqueta + ': ' + (r.error || ''));
+        const s = r.sessio;
+        const ids = s.activitats.map(x => x.activitat.id);
+        asserta(new Set(ids).size === ids.length, 'activitat duplicada a ' + etiqueta);
+        asserta(s.activitats[0].bloc === 'obertura', 'falta obertura a ' + etiqueta);
+        asserta(s.activitats[s.activitats.length - 1].bloc === 'tancament', 'falta tancament a ' + etiqueta);
+        const nivells = nivellsPermesos(peticio.intensitat);
+        for (const item of s.activitats) {
+          const a = item.activitat;
+          asserta(item.minuts >= a.durada_min && item.minuts <= a.durada_max, a.id + ' fora de rang de minuts a ' + etiqueta);
+          asserta(a.funcio.includes(item.bloc), a.id + ' no té la funció ' + item.bloc);
+          asserta(nivells.includes(a.intensitat), a.id + ' viola intensitat a ' + etiqueta);
+          asserta(peticio.lloc === 'qualsevol' || a.lloc.includes(peticio.lloc), a.id + ' viola lloc a ' + etiqueta);
+          asserta(a.edat_min <= 4 && a.edat_max >= 8, a.id + ' viola edats a ' + etiqueta);
+        }
+        const cobertes = new Set();
+        s.activitats.filter(x => x.bloc === 'nucli').forEach(x => x.dimensions.forEach(d => cobertes.add(d)));
+        const totes = new Set([...cobertes, ...s.dimensions_descartades]);
+        asserta(totes.size === 3, 'dimensions no quadren a ' + etiqueta + ': cobertes ' + [...cobertes] + ', descartades ' + s.dimensions_descartades);
+        const total = s.activitats.reduce((sum, x) => sum + x.minuts, 0);
+        if (Math.abs(total - peticio.durada) > 2) {
+          const saturades = total < peticio.durada
+            ? s.activitats.every(x => x.minuts === x.activitat.durada_max)
+            : s.activitats.every(x => x.minuts === x.activitat.durada_min);
+          asserta(saturades, 'temps no ajustat a ' + etiqueta + ': total ' + total);
+        }
+      }
+    }
+  });
+
+  prova('aleatorietat: 10 sessions iguals de petició donen composicions variades', () => {
+    const firmes = new Set();
+    for (let i = 0; i < 10; i++) {
+      const r = generaSessio({ durada: 30, lloc: 'qualsevol', intensitat: 'normal' }, CATALEG_EXEMPLE, paramsProva);
+      asserta(r.ok, r.error || '');
+      firmes.add(r.sessio.activitats.map(x => x.activitat.id).join(','));
+    }
+    asserta(firmes.size >= 2, 'totes les sessions han sortit idèntiques');
+  });
+
+  prova('substitució: canvia l’activitat sense trencar la sessió', () => {
+    let canvis = 0;
+    for (let i = 0; i < 10; i++) {
+      const r = generaSessio({ durada: 45, lloc: 'qualsevol', intensitat: 'intensa' }, CATALEG_EXEMPLE, paramsProva);
+      asserta(r.ok, r.error || '');
+      const s = r.sessio;
+      const abans = s.activitats[1].activitat.id;
+      const nova = substitueixActivitat(s, 1, CATALEG_EXEMPLE, paramsProva);
+      if (nova) {
+        canvis++;
+        asserta(nova.activitats[1].activitat.id !== abans, 'la substitució ha retornat la mateixa activitat');
+        const ids = nova.activitats.map(x => x.activitat.id);
+        asserta(new Set(ids).size === ids.length, 'substitució ha duplicat activitats');
+      }
+    }
+    asserta(canvis > 0, 'cap substitució ha trobat alternativa en 10 intents');
+  });
+
+  return resultats;
+}
+
+function vistaTests() {
+  const resultats = executaTests();
+  const passats = resultats.filter(r => r.ok).length;
+  let html = '<h1>Tests d’invariants</h1>';
+  html += '<p class="' + (passats === resultats.length ? 'test-ok' : 'test-ko') + '">' + passats + ' / ' + resultats.length + ' proves passades</p>';
+  html += '<div class="targeta"><ul style="padding-left:20px">';
+  for (const r of resultats) {
+    html += '<li class="' + (r.ok ? 'test-ok' : 'test-ko') + '">' + (r.ok ? '✔ ' : '✖ ') + esc(r.nom) +
+      (r.ok ? '' : '<br><small>' + esc(r.detall) + '</small>') + '</li>';
+  }
+  html += '</ul></div>';
+  app.innerHTML = html;
+}
+
+/* ============================================================
+   7. ROUTER
+   ============================================================ */
+const rutes = { '/generar': vistaGenerar, '/sessio': vistaSessio, '/parametres': vistaParametres, '/tests': vistaTests };
+function navega() {
+  const ruta = location.hash.replace('#', '') || '/generar';
+  (rutes[ruta] || vistaGenerar)();
+  document.querySelectorAll('nav a').forEach(a => {
+    a.classList.toggle('actiu', a.dataset.ruta === ruta);
+  });
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', navega);
+desa();
+navega();
+</script>
+</body>
+</html>

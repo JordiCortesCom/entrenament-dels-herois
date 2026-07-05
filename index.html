@@ -49,6 +49,7 @@ button{font:inherit;cursor:pointer;border:none;border-radius:var(--radi)}
 .fila-fill{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
 .fila-fill input[type=text]{flex:1 1 120px;min-width:100px}
 .fila-fill input{font:inherit;min-height:48px;padding:6px 10px;border:2px solid var(--vora);border-radius:10px}
+.targeta input[type=email],.targeta input[type=password]{width:100%;min-height:52px;font:inherit;font-size:1.05rem;padding:8px 12px;border:2px solid var(--vora);border-radius:10px;margin:6px 0;box-sizing:border-box}
 .camp-num{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
 .camp-num input{width:90px;min-height:48px;font:inherit;font-size:1.05rem;padding:6px 10px;border:2px solid var(--vora);border-radius:10px;text-align:center}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--targeta);border-top:1px solid var(--vora);display:flex;justify-content:space-around;padding:6px 0 max(6px, env(safe-area-inset-bottom))}
@@ -70,6 +71,9 @@ nav a.actiu{color:var(--primari-fosc);background:#efedfb}
   <a href="#/parametres" data-ruta="/parametres">Paràmetres</a>
 </nav>
 <div id="toast"></div>
+<script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
 
@@ -129,9 +133,30 @@ const CATALEG_EXEMPLE = [
 ];
 
 /* ============================================================
-   3. EMMAGATZEMATGE (localStorage, clau versionada)
+   3. DADES COMPARTIDES (Firebase: Auth + Firestore)
+   La configuració és pública per disseny; la seguretat són les
+   regles de Firestore (només el compte familiar llegeix/escriu).
    ============================================================ */
-const CLAU = 'herois.v1';
+const firebaseConfig = {
+  apiKey: 'AIzaSyDyeQJEu5kYCvMgnk7oqWkIP68wf0teB7o',
+  authDomain: 'entrenament-dels-herois.firebaseapp.com',
+  projectId: 'entrenament-dels-herois',
+  storageBucket: 'entrenament-dels-herois.firebasestorage.app',
+  messagingSenderId: '800971813286',
+  appId: '1:800971813286:web:88ee0f8b8fa67e92b91f67'
+};
+firebase.initializeApp(firebaseConfig);
+const autenticacio = firebase.auth();
+const bd = firebase.firestore();
+
+const CLAU_LOCAL = 'herois.v1';
+const CLAU_MIGRAT = 'herois.v1.migrat';
+
+let dades = null;
+let usuari = null;
+let refFamilia = null;
+let aturaEscoltes = [];
+
 function dadesInicials() {
   return {
     versio: 1,
@@ -144,22 +169,80 @@ function dadesValides(d) {
   return d && d.versio === 1 && Array.isArray(d.cataleg) &&
     Array.isArray(d.historial) && d.parametres && Array.isArray(d.parametres.fills);
 }
-function carrega() {
+function llegeixLocal() {
   try {
-    const brut = localStorage.getItem(CLAU);
-    if (!brut) return dadesInicials();
+    if (localStorage.getItem(CLAU_MIGRAT)) return null;
+    const brut = localStorage.getItem(CLAU_LOCAL);
+    if (!brut) return null;
     const d = JSON.parse(brut);
-    return dadesValides(d) ? d : dadesInicials();
+    return dadesValides(d) ? d : null;
   } catch (e) {
-    return dadesInicials();
+    return null;
   }
 }
-function desa() {
-  const text = JSON.stringify(dades);
-  JSON.parse(text);
-  localStorage.setItem(CLAU, text);
+
+async function preparaFamilia() {
+  const doc = await refFamilia.get();
+  if (doc.exists) return;
+  const local = llegeixLocal();
+  const inicials = local || dadesInicials();
+  const lot = bd.batch();
+  lot.set(refFamilia, { versio: 1, parametres: inicials.parametres });
+  for (const a of inicials.cataleg) lot.set(refFamilia.collection('activitats').doc(a.id), a);
+  for (const s of inicials.historial) lot.set(refFamilia.collection('sessions').doc(), s);
+  await lot.commit();
+  if (local) localStorage.setItem(CLAU_MIGRAT, '1');
 }
-let dades = carrega();
+
+function escoltaCanvis() {
+  let fam = null, cataleg = null, historial = null;
+  function combina(repinta) {
+    if (fam === null || cataleg === null || historial === null) return;
+    dades = {
+      versio: 1,
+      parametres: fam.parametres || dadesInicials().parametres,
+      cataleg: cataleg,
+      historial: historial
+    };
+    if (repinta) renavega();
+  }
+  const errorCarrega = () => {
+    dades = null;
+    app.innerHTML = '<h1>⚡ Entrenament dels herois</h1><div class="error-caixa">No s’han pogut carregar les dades. Comprova la connexió a internet i recarrega la pàgina.</div>';
+  };
+  aturaEscoltes.push(refFamilia.onSnapshot(d => { fam = d.data() || {}; combina(!d.metadata.hasPendingWrites); }, errorCarrega));
+  aturaEscoltes.push(refFamilia.collection('activitats').onSnapshot(q => { cataleg = q.docs.map(d => d.data()); combina(!q.metadata.hasPendingWrites); }, errorCarrega));
+  aturaEscoltes.push(refFamilia.collection('sessions').orderBy('data').onSnapshot(q => { historial = q.docs.map(d => d.data()); combina(!q.metadata.hasPendingWrites); }, errorCarrega));
+}
+
+function desaParametres() {
+  refFamilia.set({ versio: 1, parametres: dades.parametres }, { merge: true })
+    .catch(() => toast('No s’han pogut desar els canvis. Comprova la connexió.'));
+}
+function desaSessioFeta(entrada) {
+  refFamilia.collection('sessions').add(entrada)
+    .catch(() => toast('No s’ha pogut guardar la sessió. Comprova la connexió.'));
+}
+
+autenticacio.onAuthStateChanged(async u => {
+  usuari = u;
+  aturaEscoltes.forEach(atura => atura());
+  aturaEscoltes = [];
+  dades = null;
+  if (!u) {
+    refFamilia = null;
+    navega();
+    return;
+  }
+  refFamilia = bd.collection('families').doc(u.uid);
+  navega();
+  try {
+    await preparaFamilia();
+    escoltaCanvis();
+  } catch (e) {
+    app.innerHTML = '<h1>⚡ Entrenament dels herois</h1><div class="error-caixa">No s’han pogut preparar les dades de la família (' + esc(e.message || e) + '). Recarrega la pàgina per tornar-ho a provar.</div>';
+  }
+});
 
 /* ============================================================
    4. GENERADOR (funcions pures: no toquen DOM ni localStorage)
@@ -356,6 +439,33 @@ function toast(missatge) {
   t._temp = setTimeout(() => t.classList.remove('visible'), 2600);
 }
 
+function vistaAcces(missatge) {
+  let html = '<h1>⚡ Entrenament dels herois</h1>';
+  html += '<div class="targeta"><h3>Accés familiar</h3>';
+  html += '<p class="detall">Entra amb el compte de la família. Només cal fer-ho un cop per dispositiu.</p>';
+  html += '<input id="acces-correu" type="email" autocomplete="username" placeholder="Correu electrònic">';
+  html += '<input id="acces-clau" type="password" autocomplete="current-password" placeholder="Contrasenya">';
+  html += missatge ? '<div class="error-caixa">' + esc(missatge) + '</div>' : '';
+  html += '<button class="gran" id="btn-entra">Entra</button></div>';
+  app.innerHTML = html;
+  const entra = () => {
+    const correu = document.getElementById('acces-correu').value.trim();
+    const clau = document.getElementById('acces-clau').value;
+    if (!correu || !clau) { vistaAcces('Escriu el correu i la contrasenya.'); return; }
+    document.getElementById('btn-entra').disabled = true;
+    autenticacio.signInWithEmailAndPassword(correu, clau).catch(e => {
+      const codi = (e && e.code) || '';
+      let m = 'No s’ha pogut entrar (' + codi + ').';
+      if (/invalid-credential|wrong-password|user-not-found|invalid-email/.test(codi)) m = 'Correu o contrasenya incorrectes.';
+      if (/network-request-failed/.test(codi)) m = 'Sense connexió. Torna-ho a provar quan tinguis internet.';
+      if (/too-many-requests/.test(codi)) m = 'Massa intents seguits. Espera una mica i torna-ho a provar.';
+      vistaAcces(m);
+    });
+  };
+  document.getElementById('btn-entra').addEventListener('click', entra);
+  document.getElementById('acces-clau').addEventListener('keydown', e => { if (e.key === 'Enter') entra(); });
+}
+
 function chipsDims(dims) {
   return '<div class="chips">' + dims.map(d =>
     '<span class="chip chip-' + d + '">' + NOM_DIM[d] + '</span>').join('') + '</div>';
@@ -483,13 +593,12 @@ function vistaSessio() {
     }
     if (e.target.closest('#btn-feta')) {
       app.removeEventListener('click', gestorSessio);
-      dades.historial.push({
+      desaSessioFeta({
         data: new Date().toISOString(),
         durada: total,
         activitats: s.activitats.map(x => ({ id: x.activitat.id, bloc: x.bloc, dimensions: x.dimensions, minuts: x.minuts })),
         dimensions_descartades: s.dimensions_descartades
       });
-      desa();
       sessioActual = null;
       location.hash = '#/generar';
       toast('Sessió guardada. Bona feina, herois! 💪');
@@ -548,13 +657,16 @@ function vistaParametres() {
   html += '<div class="camp-num"><label for="dies-exclusio">Dies sense repetir una activitat</label><input id="dies-exclusio" type="number" min="0" max="60" value="' + dades.parametres.dies_exclusio + '"></div>';
   html += '<div class="camp-num"><label for="dies-penalitzacio">Dies amb menys probabilitat de sortir</label><input id="dies-penalitzacio" type="number" min="0" max="120" value="' + dades.parametres.dies_penalitzacio + '"></div>';
   html += '</div>';
+  html += '<h2>Compte</h2><div class="targeta">';
+  html += '<p class="detall">Connectat com a ' + esc(usuari.email) + '. Les dades es comparteixen amb tots els dispositius que entrin amb aquest compte.</p>';
+  html += '<button class="secundari" id="btn-surt">Tanca la sessió en aquest dispositiu</button></div>';
   app.innerHTML = html;
 
   app.querySelector('#llista-fills').addEventListener('change', e => {
     const inp = e.target.closest('input[data-camp]');
     if (!inp) return;
     dades.parametres.fills[Number(inp.dataset.i)][inp.dataset.camp] = inp.value;
-    desa();
+    desaParametres();
     if (inp.dataset.camp === 'naixement') {
       const etiqueta = app.querySelector('span[data-edat="' + inp.dataset.i + '"]');
       if (etiqueta) etiqueta.textContent = inp.value ? edatAnys(inp.value, new Date()) + ' anys' : '';
@@ -567,24 +679,27 @@ function vistaParametres() {
       const f = dades.parametres.fills[i];
       if (confirm('Segur que vols esborrar ' + (f.nom || 'aquest fill') + '?')) {
         dades.parametres.fills.splice(i, 1);
-        desa();
+        desaParametres();
         vistaParametres();
       }
       return;
     }
     if (e.target.closest('#btn-afegeix-fill')) {
       dades.parametres.fills.push({ nom: '', naixement: '2000-01-01' });
-      desa();
+      desaParametres();
       vistaParametres();
     }
   });
   app.querySelector('#dies-exclusio').addEventListener('change', e => {
     dades.parametres.dies_exclusio = Number(e.target.value);
-    desa();
+    desaParametres();
   });
   app.querySelector('#dies-penalitzacio').addEventListener('change', e => {
     dades.parametres.dies_penalitzacio = Number(e.target.value);
-    desa();
+    desaParametres();
+  });
+  app.querySelector('#btn-surt').addEventListener('click', () => {
+    if (confirm('Tancar la sessió en aquest dispositiu?')) autenticacio.signOut();
   });
 }
 
@@ -766,17 +881,40 @@ function vistaTests() {
 /* ============================================================
    7. ROUTER
    ============================================================ */
-const rutes = { '/generar': vistaGenerar, '/sessio': vistaSessio, '/historial': vistaHistorial, '/parametres': vistaParametres, '/tests': vistaTests };
+const rutes = { '/generar': vistaGenerar, '/sessio': vistaSessio, '/historial': vistaHistorial, '/parametres': vistaParametres };
 function navega() {
   const ruta = location.hash.replace('#', '') || '/generar';
+  const barra = document.querySelector('nav');
+  if (ruta === '/tests') {
+    barra.style.display = 'none';
+    vistaTests();
+    window.scrollTo(0, 0);
+    return;
+  }
+  if (!usuari) {
+    barra.style.display = 'none';
+    vistaAcces();
+    window.scrollTo(0, 0);
+    return;
+  }
+  if (!dades) {
+    barra.style.display = 'none';
+    app.innerHTML = '<h1>⚡ Entrenament dels herois</h1><div class="buit"><p>Carregant les dades…</p></div>';
+    return;
+  }
+  barra.style.display = 'flex';
   (rutes[ruta] || vistaGenerar)();
   document.querySelectorAll('nav a').forEach(a => {
     a.classList.toggle('actiu', a.dataset.ruta === ruta);
   });
   window.scrollTo(0, 0);
 }
+function renavega() {
+  const actiu = document.activeElement;
+  if (actiu && app.contains(actiu) && actiu.tagName === 'INPUT') return;
+  navega();
+}
 window.addEventListener('hashchange', navega);
-desa();
 navega();
 </script>
 </body>

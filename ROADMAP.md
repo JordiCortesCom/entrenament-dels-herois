@@ -49,7 +49,7 @@ L'app mínima que valida la idea central.
 
 **Validació:** una setmana d'ús; les sessions consecutives no repeteixen activitats recents i cap dimensió queda sistemàticament oblidada.
 
-## Iteració 3 — Dades compartides: Firebase (`v0.3`)
+## Iteració 3 — Dades compartides: Firebase (`v0.3`) — construïda, validació d'ús en curs
 
 > **Canvi de pla (2026-07-05):** després de construir les v0.1/v0.2 es va decidir que les dades han de ser compartides entre diversos terminals. Les dades passen de `localStorage` a Firebase Firestore (pla gratuït). Restriccions revisades al brief, secció 6. Aquesta iteració va abans que el CRUD perquè el catàleg real ja s'introdueixi directament sobre dades compartides.
 

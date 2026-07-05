@@ -20,7 +20,7 @@ Procés iteratiu: cada iteració acaba amb una app **funcional i usable**, es va
 
 Repositori git inicialitzat amb la documentació de disseny (brief + roadmap) i `.gitignore`.
 
-## Iteració 1 — MVP: "obro, clico, tinc sessió" (`v0.1`)
+## Iteració 1 — MVP: "obro, clico, tinc sessió" (`v0.1`) — construïda, validació d'ús en curs
 
 L'app mínima que valida la idea central.
 
@@ -36,7 +36,9 @@ L'app mínima que valida la idea central.
 
 **Validació:** durant ~1 setmana, fer 2-3 sessions reals amb els nens des del mòbil. Criteris: del gest d'obrir l'app a tenir sessió en menys de 30 segons; sessions coherents (durades quadren, activitats aptes per l'edat); dues generacions seguides donen sessions diferents.
 
-## Iteració 2 — Memòria: historial i no-repetició (`v0.2`)
+## Iteració 2 — Memòria: historial i no-repetició (`v0.2`) — construïda, validació d'ús en curs
+
+> Nota d'implementació: si l'exclusió per historial deixa alguna categoria sense candidates, el generador **relaxa l'exclusió** (tria entre les recents) en lloc de fallar; l'error només apareix quan el catàleg no té cap activitat compatible.
 
 **Abast:**
 - «Marca com a feta» → escriu a l'historial (amb dimensions treballades i minuts per activitat).

@@ -52,7 +52,7 @@ button{font:inherit;cursor:pointer;border:none;border-radius:var(--radi)}
 .camp-num{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
 .camp-num input{width:90px;min-height:48px;font:inherit;font-size:1.05rem;padding:6px 10px;border:2px solid var(--vora);border-radius:10px;text-align:center}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--targeta);border-top:1px solid var(--vora);display:flex;justify-content:space-around;padding:6px 0 max(6px, env(safe-area-inset-bottom))}
-nav a{flex:1;text-align:center;padding:12px 4px;text-decoration:none;color:var(--tinta-suau);font-size:1rem;font-weight:600;border-radius:10px;margin:0 6px}
+nav a{flex:1;text-align:center;padding:12px 2px;text-decoration:none;color:var(--tinta-suau);font-size:.92rem;font-weight:600;border-radius:10px;margin:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 nav a.actiu{color:var(--primari-fosc);background:#efedfb}
 #toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);background:var(--tinta);color:#fff;padding:12px 20px;border-radius:999px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center}
 #toast.visible{opacity:1}
@@ -66,6 +66,7 @@ nav a.actiu{color:var(--primari-fosc);background:#efedfb}
 <nav>
   <a href="#/generar" data-ruta="/generar">Genera</a>
   <a href="#/sessio" data-ruta="/sessio">Sessió</a>
+  <a href="#/historial" data-ruta="/historial">Historial</a>
   <a href="#/parametres" data-ruta="/parametres">Paràmetres</a>
 </nav>
 <div id="toast"></div>
@@ -190,8 +191,44 @@ function calculaBlocs(durada) {
 }
 function errorSessio(missatge) { return { ok: false, error: missatge }; }
 
-function generaSessio(peticio, cataleg, parametres, opcions) {
+function ultimaVegada(historial) {
+  const mapa = new Map();
+  for (const s of historial) {
+    const t = new Date(s.data).getTime();
+    for (const a of s.activitats) {
+      if (!mapa.has(a.id) || mapa.get(a.id) < t) mapa.set(a.id, t);
+    }
+  }
+  return mapa;
+}
+function pesHistorial(id, mapaUltima, parametres, ara) {
+  const t = mapaUltima.get(id);
+  if (t === undefined) return 1;
+  const dies = (ara.getTime() - t) / 86400000;
+  if (dies < parametres.dies_exclusio) return 0;
+  if (dies < parametres.dies_penalitzacio) return 0.35;
+  return 1;
+}
+function minutsPerDimensio(historial, ara, diesFinestra) {
+  const res = { mental: 0, fisic: 0, espiritual: 0 };
+  for (const s of historial) {
+    if ((ara.getTime() - new Date(s.data).getTime()) / 86400000 > diesFinestra) continue;
+    for (const a of s.activitats) {
+      for (const d of a.dimensions) res[d] += a.minuts / a.dimensions.length;
+    }
+  }
+  return res;
+}
+function triaAmbHistorial(cands, pesDe) {
+  const frescos = cands.filter(a => pesDe(a) > 0);
+  if (frescos.length) return triaPonderada(frescos, pesDe);
+  return cands[enterAtzar(cands.length)];
+}
+
+function generaSessio(peticio, cataleg, parametres, historial, opcions) {
   const ara = (opcions && opcions.ara) || new Date();
+  const mapaUltima = ultimaVegada(historial || []);
+  const pesHist = a => pesHistorial(a.id, mapaUltima, parametres, ara);
   const edats = rangEdats(parametres.fills, ara);
   if (!edats) return errorSessio('Abans de generar cal indicar les dates de naixement dels fills a Paràmetres.');
   if (!cataleg.length) return errorSessio('El catàleg és buit. Afegeix activitats per poder generar sessions.');
@@ -201,7 +238,9 @@ function generaSessio(peticio, cataleg, parametres, opcions) {
   if (!base.length) return errorSessio('Cap activitat del catàleg encaixa amb aquests filtres (edats ' + edats.min + '-' + edats.max + ', ' + peticio.lloc + ', ' + peticio.intensitat + '). Prova amb altres opcions o afegeix activitats.');
 
   const blocs = calculaBlocs(peticio.durada);
+  const treballRecent = minutsPerDimensio(historial || [], ara, parametres.dies_penalitzacio || 21);
   let dims = baralla(DIMENSIONS);
+  dims.sort((x, y) => treballRecent[x] - treballRecent[y]);
   const descartades = [];
   while (blocs.nucli / dims.length < MIN_ACTIVITAT_NUCLI && dims.length > 1) {
     descartades.push(dims.pop());
@@ -219,7 +258,7 @@ function generaSessio(peticio, cataleg, parametres, opcions) {
       a.funcio.includes('nucli') && a.dimensions.includes(dim) &&
       !usats.has(a.id) && a.durada_min <= tempsDim);
     if (cands.length) {
-      const a = cands[enterAtzar(cands.length)];
+      const a = triaAmbHistorial(cands, pesHist);
       usats.add(a.id);
       activitats.push({ activitat: a, bloc: 'nucli', dimensions: [dim], minuts: limita(Math.round(tempsDim), a.durada_min, a.durada_max) });
     } else {
@@ -232,11 +271,16 @@ function generaSessio(peticio, cataleg, parametres, opcions) {
     }
   }
 
-  const dimsPrioritaries = new Set(descartades);
+  const minutsSessio = { mental: 0, fisic: 0, espiritual: 0 };
+  for (const x of activitats) {
+    for (const d of x.dimensions) minutsSessio[d] += x.minuts / x.dimensions.length;
+  }
+  const minimCobert = Math.min(...DIMENSIONS.map(d => minutsSessio[d]));
+  const dimsPrioritaries = new Set(DIMENSIONS.filter(d => minutsSessio[d] === minimCobert));
   function triaExtrem(funcio, temps) {
     const cands = base.filter(a => a.funcio.includes(funcio) && !usats.has(a.id) && a.durada_min <= temps);
     if (!cands.length) return null;
-    const a = triaPonderada(cands, c => c.dimensions.some(d => dimsPrioritaries.has(d)) ? 3 : 1);
+    const a = triaAmbHistorial(cands, c => pesHist(c) * (c.dimensions.some(d => dimsPrioritaries.has(d)) ? 3 : 1));
     usats.add(a.id);
     return { activitat: a, bloc: funcio, dimensions: a.dimensions.slice(), minuts: limita(temps, a.durada_min, a.durada_max) };
   }
@@ -274,8 +318,9 @@ function ajustaTemps(activitats, objectiu) {
   }
 }
 
-function substitueixActivitat(sessio, index, cataleg, parametres, opcions) {
+function substitueixActivitat(sessio, index, cataleg, parametres, historial, opcions) {
   const ara = (opcions && opcions.ara) || new Date();
+  const mapaUltima = ultimaVegada(historial || []);
   const edats = rangEdats(parametres.fills, ara);
   if (!edats) return null;
   const ctx = { edats, lloc: sessio.peticio.lloc, nivells: nivellsPermesos(sessio.peticio.intensitat) };
@@ -286,7 +331,7 @@ function substitueixActivitat(sessio, index, cataleg, parametres, opcions) {
     a.funcio.includes(actual.bloc) && a.durada_min <= actual.minuts &&
     (actual.bloc !== 'nucli' || actual.dimensions.every(d => a.dimensions.includes(d))));
   if (!cands.length) return null;
-  const a = cands[enterAtzar(cands.length)];
+  const a = triaAmbHistorial(cands, c => pesHistorial(c.id, mapaUltima, parametres, ara));
   sessio.activitats[index] = {
     activitat: a, bloc: actual.bloc,
     dimensions: actual.bloc === 'nucli' ? actual.dimensions.slice() : a.dimensions.slice(),
@@ -388,7 +433,7 @@ function vistaGenerar() {
     vistaGenerar();
   });
   app.querySelector('#btn-genera').addEventListener('click', () => {
-    const r = generaSessio(prefs, dades.cataleg, dades.parametres);
+    const r = generaSessio(prefs, dades.cataleg, dades.parametres, dades.historial);
     if (!r.ok) {
       app.querySelector('#lloc-error').innerHTML = '<div class="error-caixa">' + esc(r.error) + '</div>';
       return;
@@ -424,14 +469,14 @@ function vistaSessio() {
     const canvia = e.target.closest('button[data-canvia]');
     if (canvia) {
       app.removeEventListener('click', gestorSessio);
-      const nova = substitueixActivitat(sessioActual, Number(canvia.dataset.canvia), dades.cataleg, dades.parametres);
+      const nova = substitueixActivitat(sessioActual, Number(canvia.dataset.canvia), dades.cataleg, dades.parametres, dades.historial);
       if (!nova) toast('No hi ha cap alternativa compatible per a aquesta activitat.');
       vistaSessio();
       return;
     }
     if (e.target.closest('#btn-regenera')) {
       app.removeEventListener('click', gestorSessio);
-      const r = generaSessio(sessioActual.peticio, dades.cataleg, dades.parametres);
+      const r = generaSessio(sessioActual.peticio, dades.cataleg, dades.parametres, dades.historial);
       if (r.ok) sessioActual = r.sessio; else toast(r.error);
       vistaSessio();
       return;
@@ -450,6 +495,34 @@ function vistaSessio() {
       toast('Sessió guardada. Bona feina, herois! 💪');
     }
   }
+}
+
+function vistaHistorial() {
+  let html = '<h1>Historial</h1>';
+  if (!dades.historial.length) {
+    html += '<div class="buit"><p>Encara no hi ha cap sessió feta.</p><p><a href="#/generar">Genera la primera →</a></p></div>';
+    app.innerHTML = html;
+    return;
+  }
+  const noms = new Map(dades.cataleg.map(a => [a.id, a.nom]));
+  html += '<p class="detall">' + dades.historial.length + (dades.historial.length === 1 ? ' sessió feta' : ' sessions fetes') +
+    '. Les activitats fetes fa menys de ' + dades.parametres.dies_exclusio + ' dies no es repetiran.</p>';
+  for (const s of dades.historial.slice().reverse()) {
+    const data = new Date(s.data);
+    html += '<div class="targeta">';
+    html += '<div class="bloc-cap"><span class="bloc-tipus">' + esc(data.toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' })) + '</span>';
+    html += '<span class="minuts">' + s.durada + ' min</span></div>';
+    html += '<ul style="margin:8px 0;padding-left:20px">';
+    for (const a of s.activitats) {
+      html += '<li>' + esc(noms.get(a.id) || a.id) + ' <span class="detall">(' + a.minuts + ' min · ' + a.dimensions.map(d => NOM_DIM[d]).join(', ') + ')</span></li>';
+    }
+    html += '</ul>';
+    if (s.dimensions_descartades && s.dimensions_descartades.length) {
+      html += '<p class="detall">Sense la dimensió ' + s.dimensions_descartades.map(d => NOM_DIM[d].toLowerCase()).join(' ni ') + '</p>';
+    }
+    html += '</div>';
+  }
+  app.innerHTML = html;
 }
 
 function vistaParametres() {
@@ -471,7 +544,7 @@ function vistaParametres() {
   html += '</div>';
 
   html += '<h2>No-repetició</h2><div class="targeta">';
-  html += '<p class="detall">S’activarà a la v0.2, quan l’app tingui historial. Els valors ja es poden configurar.</p>';
+  html += '<p class="detall">Una activitat feta fa menys dies que el primer valor no torna a sortir; entre els dos valors, surt amb menys probabilitat.</p>';
   html += '<div class="camp-num"><label for="dies-exclusio">Dies sense repetir una activitat</label><input id="dies-exclusio" type="number" min="0" max="60" value="' + dades.parametres.dies_exclusio + '"></div>';
   html += '<div class="camp-num"><label for="dies-penalitzacio">Dies amb menys probabilitat de sortir</label><input id="dies-penalitzacio" type="number" min="0" max="120" value="' + dades.parametres.dies_penalitzacio + '"></div>';
   html += '</div>';
@@ -635,6 +708,44 @@ function executaTests() {
     asserta(canvis > 0, 'cap substitució ha trobat alternativa en 10 intents');
   });
 
+  prova('exclusió: una activitat feta fa poc no torna a sortir', () => {
+    const ahir = new Date(Date.now() - 86400000).toISOString();
+    const historial = [{ data: ahir, durada: 30, activitats: [{ id: 'memory-parelles', bloc: 'nucli', dimensions: ['mental'], minuts: 10 }], dimensions_descartades: [] }];
+    for (let i = 0; i < 25; i++) {
+      const r = generaSessio({ durada: 30, lloc: 'interior', intensitat: 'normal' }, CATALEG_EXEMPLE, paramsProva, historial);
+      asserta(r.ok, r.error || '');
+      asserta(!r.sessio.activitats.some(x => x.activitat.id === 'memory-parelles'), 'ha sortit una activitat exclosa per historial');
+    }
+  });
+
+  prova('penalització: pes segons l’antiguitat de l’última vegada', () => {
+    const ara = new Date();
+    const fa = dies => new Map([['x', ara.getTime() - dies * 86400000]]);
+    const params = { dies_exclusio: 7, dies_penalitzacio: 21 };
+    asserta(pesHistorial('x', fa(3), params, ara) === 0, 'feta fa 3 dies hauria de quedar exclosa');
+    asserta(pesHistorial('x', fa(10), params, ara) === 0.35, 'feta fa 10 dies hauria de quedar penalitzada');
+    asserta(pesHistorial('x', fa(30), params, ara) === 1, 'feta fa 30 dies hauria de tenir pes normal');
+    asserta(pesHistorial('mai-feta', fa(3), params, ara) === 1, 'mai feta hauria de tenir pes normal');
+  });
+
+  prova('rotació: la sessió curta descarta la dimensió més treballada', () => {
+    const fa2dies = new Date(Date.now() - 2 * 86400000).toISOString();
+    const historial = [{ data: fa2dies, durada: 60, activitats: [{ id: 'antiga-fisica', bloc: 'nucli', dimensions: ['fisic'], minuts: 50 }], dimensions_descartades: [] }];
+    for (let i = 0; i < 8; i++) {
+      const r = generaSessio({ durada: 20, lloc: 'qualsevol', intensitat: 'normal' }, CATALEG_EXEMPLE, paramsProva, historial);
+      asserta(r.ok, r.error || '');
+      asserta(r.sessio.dimensions_descartades.length === 1, 'una sessió de 20 min hauria de descartar una dimensió');
+      asserta(r.sessio.dimensions_descartades[0] === 'fisic', 'hauria de descartar la física (la més treballada), ha descartat ' + r.sessio.dimensions_descartades[0]);
+    }
+  });
+
+  prova('relaxació: si tot el catàleg és recent, genera igualment', () => {
+    const ahir = new Date(Date.now() - 86400000).toISOString();
+    const historial = [{ data: ahir, durada: 60, activitats: CATALEG_EXEMPLE.map(a => ({ id: a.id, bloc: 'nucli', dimensions: a.dimensions, minuts: 5 })), dimensions_descartades: [] }];
+    const r = generaSessio({ durada: 30, lloc: 'qualsevol', intensitat: 'normal' }, CATALEG_EXEMPLE, paramsProva, historial);
+    asserta(r.ok, 'amb tot exclòs hauria de relaxar l’exclusió, no fallar: ' + (r.error || ''));
+  });
+
   return resultats;
 }
 
@@ -655,7 +766,7 @@ function vistaTests() {
 /* ============================================================
    7. ROUTER
    ============================================================ */
-const rutes = { '/generar': vistaGenerar, '/sessio': vistaSessio, '/parametres': vistaParametres, '/tests': vistaTests };
+const rutes = { '/generar': vistaGenerar, '/sessio': vistaSessio, '/historial': vistaHistorial, '/parametres': vistaParametres, '/tests': vistaTests };
 function navega() {
   const ruta = location.hash.replace('#', '') || '/generar';
   (rutes[ruta] || vistaGenerar)();

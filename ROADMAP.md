@@ -71,7 +71,7 @@ L'app mínima que valida la idea central.
 
 **Validació:** migrar els recursos reals (enllaços guardats) al catàleg — 15-20 activitats pròpies, des de qualsevol dispositiu — i generar sessions només amb elles. Aquesta és la prova de foc del model de dades.
 
-## Iteració 5 — Còpia de seguretat i poliment (`v1.0`)
+## Iteració 5 — Còpia de seguretat i poliment (`v1.0`) — construïda, validació d'ús en curs
 
 **Abast:**
 - Export de tot (catàleg + historial + paràmetres) a un fitxer JSON descarregable — còpia de seguretat sota control de l'usuari, amb avís de dades personals i opció d'exportar sense historial.

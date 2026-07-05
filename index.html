@@ -271,6 +271,67 @@ function generaIdUnic(nom, cataleg) {
   return base + '-' + n;
 }
 
+function validaCopia(d) {
+  if (!d || d.versio !== 1) return 'El fitxer no és una còpia vàlida d’aquesta app (falta la versió de l’esquema).';
+  if (!d.parametres || !Array.isArray(d.parametres.fills)) return 'El fitxer no té paràmetres vàlids.';
+  if (!Array.isArray(d.cataleg)) return 'El fitxer no té catàleg d’activitats.';
+  if (!Array.isArray(d.historial)) return 'El fitxer no té historial.';
+  for (const a of d.cataleg) {
+    if (!a || !a.id || !a.nom) return 'El catàleg del fitxer conté activitats sense identificador o nom.';
+  }
+  return null;
+}
+function fusionaCataleg(actual, importat) {
+  const idsActuals = new Set(actual.map(a => a.id));
+  const cataleg = actual.map(a => importat.find(x => x.id === a.id) || a);
+  const afegides = importat.filter(x => !idsActuals.has(x.id));
+  return {
+    cataleg: cataleg.concat(afegides),
+    afegides: afegides.length,
+    actualitzades: importat.length - afegides.length
+  };
+}
+function sessionsNoves(actual, importat) {
+  const dates = new Set(actual.map(s => s.data));
+  return importat.filter(s => s.data && !dates.has(s.data));
+}
+
+function baixaFitxer(nomFitxer, contingut) {
+  const blob = new Blob([contingut], { type: 'application/json' });
+  const enllac = document.createElement('a');
+  enllac.href = URL.createObjectURL(blob);
+  enllac.download = nomFitxer;
+  document.body.appendChild(enllac);
+  enllac.click();
+  enllac.remove();
+  setTimeout(() => URL.revokeObjectURL(enllac.href), 5000);
+}
+function exportaDades(ambHistorial) {
+  const copia = {
+    versio: 1,
+    exportat: new Date().toISOString(),
+    parametres: dades.parametres,
+    cataleg: dades.cataleg,
+    historial: ambHistorial ? dades.historial : []
+  };
+  baixaFitxer('herois-copia-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(copia, null, 2));
+}
+async function importaDades(objecte) {
+  const problema = validaCopia(objecte);
+  if (problema) { toast(problema); return; }
+  try {
+    localStorage.setItem('herois.copia-previa', JSON.stringify({ versio: 1, guardadaEl: new Date().toISOString(), parametres: dades.parametres, cataleg: dades.cataleg, historial: dades.historial }));
+  } catch (e) { }
+  const fusio = fusionaCataleg(dades.cataleg, objecte.cataleg);
+  const noves = sessionsNoves(dades.historial, objecte.historial);
+  const lot = bd.batch();
+  lot.set(refFamilia, { versio: 1, parametres: objecte.parametres });
+  for (const a of fusio.cataleg) lot.set(refFamilia.collection('activitats').doc(a.id), a);
+  for (const s of noves) lot.set(refFamilia.collection('sessions').doc(), s);
+  await lot.commit();
+  toast('Còpia importada: ' + fusio.afegides + ' activitats noves, ' + fusio.actualitzades + ' actualitzades i ' + noves.length + ' sessions afegides.');
+}
+
 autenticacio.onAuthStateChanged(async u => {
   usuari = u;
   aturaEscoltes.forEach(atura => atura());
@@ -875,10 +936,38 @@ function vistaParametres() {
   html += '<div class="camp-num"><label for="dies-exclusio">Dies sense repetir una activitat</label><input id="dies-exclusio" type="number" min="0" max="60" value="' + dades.parametres.dies_exclusio + '"></div>';
   html += '<div class="camp-num"><label for="dies-penalitzacio">Dies amb menys probabilitat de sortir</label><input id="dies-penalitzacio" type="number" min="0" max="120" value="' + dades.parametres.dies_penalitzacio + '"></div>';
   html += '</div>';
+  html += '<h2>Còpia de seguretat</h2><div class="targeta">';
+  html += '<p class="detall">Descarrega totes les dades en un fitxer JSON. Conté dades personals (dates de naixement i historial d’ús): guarda’l en un lloc segur.</p>';
+  html += '<div class="grup-caselles"><label><input type="checkbox" id="exporta-historial" checked>Inclou l’historial</label></div>';
+  html += '<button class="secundari" id="btn-exporta">⬇ Descarrega una còpia</button>';
+  html += '<p class="detall" style="margin-top:14px">Importar una còpia fusiona les dades: actualitza les activitats existents, afegeix les noves i no esborra res. Abans d’aplicar-la es guarda una còpia de l’estat actual en aquest dispositiu.</p>';
+  html += '<input type="file" id="fitxer-importa" accept=".json,application/json" style="display:none">';
+  html += '<button class="secundari" id="btn-importa">⬆ Importa una còpia</button>';
+  html += '</div>';
   html += '<h2>Compte</h2><div class="targeta">';
   html += '<p class="detall">Connectat com a ' + esc(usuari.email) + '. Les dades es comparteixen amb tots els dispositius que entrin amb aquest compte.</p>';
   html += '<button class="secundari" id="btn-surt">Tanca la sessió en aquest dispositiu</button></div>';
+  html += '<p class="detall" style="text-align:center;margin-top:24px">Entrenament dels herois · v1.0</p>';
   app.innerHTML = html;
+
+  app.querySelector('#btn-exporta').addEventListener('click', () => {
+    exportaDades(app.querySelector('#exporta-historial').checked);
+    toast('Còpia descarregada.');
+  });
+  app.querySelector('#btn-importa').addEventListener('click', () => app.querySelector('#fitxer-importa').click());
+  app.querySelector('#fitxer-importa').addEventListener('change', e => {
+    const fitxer = e.target.files[0];
+    if (!fitxer) return;
+    const lector = new FileReader();
+    lector.onload = () => {
+      let objecte = null;
+      try { objecte = JSON.parse(lector.result); } catch (err) { toast('El fitxer no és un JSON vàlid.'); return; }
+      if (confirm('Importar «' + fitxer.name + '»? Es fusionarà amb les dades actuals sense esborrar res.')) {
+        importaDades(objecte).catch(() => toast('No s’ha pogut importar. Comprova la connexió.'));
+      }
+    };
+    lector.readAsText(fitxer);
+  });
 
   app.querySelector('#llista-fills').addEventListener('change', e => {
     const inp = e.target.closest('input[data-camp]');
@@ -1090,6 +1179,25 @@ function executaTests() {
     asserta(generaIdUnic('Nova activitat', []) === 'nova-activitat', 'id base');
     const cataleg = [{ id: 'nova-activitat' }, { id: 'nova-activitat-2' }];
     asserta(generaIdUnic('Nova activitat', cataleg) === 'nova-activitat-3', 'col·lisió doble: ' + generaIdUnic('Nova activitat', cataleg));
+  });
+
+  prova('còpia de seguretat: validació del fitxer', () => {
+    asserta(validaCopia(null) !== null, 'null hauria de fallar');
+    asserta(validaCopia({ versio: 2 }) !== null, 'versió desconeguda hauria de fallar');
+    asserta(validaCopia({ versio: 1, parametres: { fills: [] }, cataleg: [], historial: [] }) === null, 'còpia mínima vàlida');
+    asserta(validaCopia({ versio: 1, parametres: { fills: [] }, cataleg: [{ id: 'x' }], historial: [] }) !== null, 'activitat sense nom hauria de fallar');
+  });
+
+  prova('còpia de seguretat: fusió sense pèrdues', () => {
+    const actual = [{ id: 'a', nom: 'A vella' }, { id: 'b', nom: 'B' }];
+    const importat = [{ id: 'a', nom: 'A nova' }, { id: 'c', nom: 'C' }];
+    const fusio = fusionaCataleg(actual, importat);
+    asserta(fusio.cataleg.length === 3, 'la fusió ha de conservar-ho tot: ' + fusio.cataleg.length);
+    asserta(fusio.cataleg.find(x => x.id === 'a').nom === 'A nova', 'l’activitat existent s’ha d’actualitzar');
+    asserta(fusio.cataleg.find(x => x.id === 'b').nom === 'B', 'l’activitat no importada s’ha de conservar');
+    asserta(fusio.afegides === 1 && fusio.actualitzades === 1, 'recompte: ' + fusio.afegides + '/' + fusio.actualitzades);
+    const noves = sessionsNoves([{ data: '2026-07-01T10:00:00Z' }], [{ data: '2026-07-01T10:00:00Z' }, { data: '2026-07-02T10:00:00Z' }]);
+    asserta(noves.length === 1 && noves[0].data === '2026-07-02T10:00:00Z', 'les sessions repetides no s’han de duplicar');
   });
 
   prova('relaxació: si tot el catàleg és recent, genera igualment', () => {

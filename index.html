@@ -6,38 +6,39 @@
 <title>Entrenament dels herois</title>
 <style>
 :root{
-  --fons:#faf7f1; --tinta:#2c2c2a; --tinta-suau:#6b6a63;
-  --primari:#5346b0; --primari-fosc:#3f3590;
+  --fons:#fdf5ea; --tinta:#16233b; --tinta-suau:#5a6577;
+  --primari:#e5484d; --primari-fosc:#c0392b;
+  --or:#f5a524; --or-fons:#fdeecb;
   --mental:#0c447c; --mental-fons:#e6f1fb;
   --fisic:#712b13; --fisic-fons:#faece7;
   --espiritual:#085041; --espiritual-fons:#e1f5ee;
-  --targeta:#ffffff; --vora:#e5dfd3; --error:#a32d2d; --error-fons:#fcebeb;
+  --targeta:#ffffff; --vora:#e4dccc; --vora-forta:#16233b; --error:#a32d2d; --error-fons:#fcebeb;
   --radi:14px;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--fons);color:var(--tinta);font-size:17px;line-height:1.5}
 #app{max-width:640px;margin:0 auto;padding:16px 16px 100px}
-h1{font-size:1.45rem;margin:8px 0 16px}
-h2{font-size:1.05rem;margin:18px 0 8px;color:var(--tinta-suau);font-weight:600}
-h3{font-size:1.2rem;margin:4px 0 6px}
+h1{font-size:1.5rem;margin:8px 0 16px;font-weight:800;letter-spacing:-.01em}
+h2{font-size:1.05rem;margin:18px 0 8px;color:var(--tinta-suau);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+h3{font-size:1.2rem;margin:4px 0 6px;font-weight:700}
 p{margin:6px 0}
-a{color:var(--primari)}
+a{color:var(--primari-fosc);font-weight:600}
 button{font:inherit;cursor:pointer;border:none;border-radius:var(--radi)}
-.targeta{background:var(--targeta);border:1px solid var(--vora);border-radius:var(--radi);padding:16px;margin:12px 0}
+.targeta{background:var(--targeta);border:2px solid var(--vora-forta);border-radius:var(--radi);padding:16px;margin:12px 0}
 .segments{display:flex;flex-wrap:wrap;gap:8px}
 .segments button{min-height:52px;padding:10px 16px;background:var(--targeta);border:2px solid var(--vora);border-radius:var(--radi);font-size:1.05rem;flex:1 1 auto}
-.segments button.actiu{border-color:var(--primari);background:#efedfb;color:var(--primari-fosc);font-weight:600}
+.segments button.actiu{border-color:var(--primari);background:#fdecec;color:var(--primari-fosc);font-weight:700}
 .durada-lliure{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--tinta-suau)}
 .durada-lliure input{width:90px;min-height:48px;font:inherit;font-size:1.1rem;padding:6px 10px;border:2px solid var(--vora);border-radius:10px;text-align:center}
-.gran{width:100%;min-height:64px;padding:16px;font-size:1.3rem;font-weight:600;background:var(--primari);color:#fff;margin-top:20px}
+.gran{width:100%;min-height:64px;padding:16px;font-size:1.3rem;font-weight:700;background:var(--primari);color:#fff;margin-top:20px;border:2px solid var(--vora-forta)}
 .gran:active{background:var(--primari-fosc)}
 .secundari{width:100%;min-height:52px;padding:12px;font-size:1.05rem;background:var(--targeta);border:2px solid var(--vora);color:var(--tinta);margin-top:10px}
 .petit{min-height:44px;padding:8px 14px;font-size:.95rem;background:var(--fons);border:1.5px solid var(--vora);color:var(--tinta-suau)}
 .perill{color:var(--error);border-color:#f0c5c5}
 .bloc-cap{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
-.bloc-tipus{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tinta-suau)}
-.minuts{font-weight:700;color:var(--primari-fosc);white-space:nowrap}
+.bloc-tipus{font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--primari-fosc)}
+.minuts{font-weight:800;color:var(--tinta);white-space:nowrap}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .chip{font-size:.85rem;font-weight:600;padding:4px 12px;border-radius:999px}
 .chip-mental{background:var(--mental-fons);color:var(--mental)}
@@ -54,7 +55,8 @@ button{font:inherit;cursor:pointer;border:none;border-radius:var(--radi)}
 .camp-num input{width:90px;min-height:48px;font:inherit;font-size:1.05rem;padding:6px 10px;border:2px solid var(--vora);border-radius:10px;text-align:center}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--targeta);border-top:1px solid var(--vora);display:flex;justify-content:space-around;padding:6px 0 max(6px, env(safe-area-inset-bottom))}
 nav a{flex:1;text-align:center;padding:12px 1px;text-decoration:none;color:var(--tinta-suau);font-size:.82rem;font-weight:600;border-radius:10px;margin:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-nav a.actiu{color:var(--primari-fosc);background:#efedfb}
+nav{border-top:2px solid var(--vora-forta)}
+nav a.actiu{color:var(--primari-fosc);background:#fdecec}
 #toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);background:var(--tinta);color:#fff;padding:12px 20px;border-radius:999px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center}
 #toast.visible{opacity:1}
 .test-ok{color:#27500a}

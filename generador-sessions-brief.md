@@ -69,15 +69,40 @@ Cada activitat es representa com un objecte JSON:
 | `edat_max` | número | Edat màxima recomanada |
 | `materials` | string | Text lliure (`cap`, `paper i llapis`...) |
 
-L'historial de sessions fetes també viu al localStorage amb aquesta forma:
+### Emmagatzematge i versionat
+
+Tot el que persisteix viu sota una única clau de localStorage, `herois.v1`. Aquest objecte arrel és també el format exacte del fitxer d'export:
+
+```json
+{
+  "versio": 1,
+  "parametres": {
+    "fills": [{ "nom": "Aina", "naixement": "2018-03-14" }],
+    "dies_exclusio": 7,
+    "dies_penalitzacio": 21
+  },
+  "cataleg": [],
+  "historial": []
+}
+```
+
+Cada sessió de l'historial guarda les dimensions realment treballades i els minuts assignats per activitat (necessari per a la no-repetició, la rotació de la dimensió descartada en sessions curtes i les estadístiques futures):
 
 ```json
 {
   "data": "2026-07-05T18:30:00Z",
   "durada": 30,
-  "activitats": ["resp-flor", "id-activitat-2", ...]
+  "activitats": [
+    { "id": "resp-flor", "bloc": "obertura", "dimensions": ["espiritual"], "minuts": 3 }
+  ],
+  "dimensio_descartada": null
 }
 ```
+
+Regles de compatibilitat:
+- El camp `versio` és obligatori tant a localStorage com als fitxers d'export. En carregar dades d'una versió anterior s'apliquen migracions seqüencials (`migra(dades, deVersio)`), mai es descarten dades.
+- Abans d'aplicar un import es fa una còpia automàtica de les dades existents.
+- Tota escriptura a localStorage es valida abans de serialitzar (no perdre dades és prioritari).
 
 ---
 
@@ -112,7 +137,7 @@ Accions globals:
 CRUD sobre el catàleg:
 - Llistat amb cerca i filtres
 - Alta / edició / esborrat
-- Import/export del catàleg com a JSON (backup i sincronització manual entre dispositius)
+- Import/export de totes les dades (catàleg + historial + paràmetres) com a JSON, amb fusió per `id` (backup i sincronització manual entre dispositius)
 
 ### Pantalla 4 — Historial
 
@@ -121,7 +146,7 @@ CRUD sobre el catàleg:
 
 ### Pantalla 5 — Paràmetres
 
-- Rang d'edats dels fills (mín/màx)
+- Dates de naixement dels fills (el rang d'edats es calcula automàticament; el nom és opcional i pot ser un àlies)
 - Configuració del període de no-repetició (dies)
 
 ---

@@ -63,7 +63,7 @@ L'app mínima que valida la idea central.
 
 **Validació:** les mateixes dades es veuen des de mòbil i ordinador; una sessió marcada com a feta en un terminal apareix a l'historial de l'altre; la migració conserva l'historial i els paràmetres existents.
 
-## Iteració 4 — Catàleg propi: CRUD d'activitats (`v0.4`)
+## Iteració 4 — Catàleg propi: CRUD d'activitats (`v0.4`) — construïda, validació d'ús en curs
 
 **Abast:**
 - Pantalla **Activitats**: llistat amb cerca i filtres, alta, edició i esborrat, amb validació de camps.

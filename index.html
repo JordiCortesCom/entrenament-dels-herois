@@ -53,13 +53,25 @@ button{font:inherit;cursor:pointer;border:none;border-radius:var(--radi)}
 .camp-num{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
 .camp-num input{width:90px;min-height:48px;font:inherit;font-size:1.05rem;padding:6px 10px;border:2px solid var(--vora);border-radius:10px;text-align:center}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--targeta);border-top:1px solid var(--vora);display:flex;justify-content:space-around;padding:6px 0 max(6px, env(safe-area-inset-bottom))}
-nav a{flex:1;text-align:center;padding:12px 2px;text-decoration:none;color:var(--tinta-suau);font-size:.92rem;font-weight:600;border-radius:10px;margin:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+nav a{flex:1;text-align:center;padding:12px 1px;text-decoration:none;color:var(--tinta-suau);font-size:.82rem;font-weight:600;border-radius:10px;margin:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 nav a.actiu{color:var(--primari-fosc);background:#efedfb}
 #toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);background:var(--tinta);color:#fff;padding:12px 20px;border-radius:999px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center}
 #toast.visible{opacity:1}
 .test-ok{color:#27500a}
 .test-ko{color:var(--error);font-weight:600}
 .buit{text-align:center;color:var(--tinta-suau);padding:40px 10px}
+.cerca{width:100%;font:inherit;font-size:1.05rem;padding:10px 12px;border:2px solid var(--vora);border-radius:10px;margin:8px 0;background:var(--targeta)}
+.formulari input[type=text],.formulari input[type=url],.formulari textarea{width:100%;font:inherit;padding:8px 12px;border:2px solid var(--vora);border-radius:10px;margin:4px 0;background:var(--targeta)}
+.formulari textarea{min-height:70px;resize:vertical}
+.formulari input[type=number]{width:100%;font:inherit;padding:8px;border:2px solid var(--vora);border-radius:10px;text-align:center}
+.etiqueta{font-size:.9rem;font-weight:600;color:var(--tinta-suau);margin-top:12px;display:block}
+.grup-caselles{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.grup-caselles label{display:flex;align-items:center;gap:8px;font-size:1rem;min-height:46px;padding:4px 12px;border:1.5px solid var(--vora);border-radius:10px;background:var(--targeta)}
+.grup-caselles input{width:20px;height:20px}
+.fila-dos{display:flex;gap:10px}
+.fila-dos>div{flex:1}
+.accions-fila{display:flex;gap:8px;margin-top:10px}
+.accions-fila .petit{flex:1}
 </style>
 </head>
 <body>
@@ -67,6 +79,7 @@ nav a.actiu{color:var(--primari-fosc);background:#efedfb}
 <nav>
   <a href="#/generar" data-ruta="/generar">Genera</a>
   <a href="#/sessio" data-ruta="/sessio">Sessió</a>
+  <a href="#/activitats" data-ruta="/activitats">Activitats</a>
   <a href="#/historial" data-ruta="/historial">Historial</a>
   <a href="#/parametres" data-ruta="/parametres">Paràmetres</a>
 </nav>
@@ -222,6 +235,40 @@ function desaParametres() {
 function desaSessioFeta(entrada) {
   refFamilia.collection('sessions').add(entrada)
     .catch(() => toast('No s’ha pogut guardar la sessió. Comprova la connexió.'));
+}
+function desaActivitat(activitat) {
+  refFamilia.collection('activitats').doc(activitat.id).set(activitat)
+    .catch(() => toast('No s’ha pogut desar l’activitat. Comprova la connexió.'));
+}
+function esborraActivitat(id) {
+  refFamilia.collection('activitats').doc(id).delete()
+    .catch(() => toast('No s’ha pogut esborrar l’activitat. Comprova la connexió.'));
+}
+
+function validaActivitat(a) {
+  const errors = [];
+  if (!a.nom || !a.nom.trim()) errors.push('Cal un nom.');
+  if (!a.dimensions.length) errors.push('Tria almenys una dimensió.');
+  if (!a.funcio.length) errors.push('Tria almenys una funció (obertura, nucli o tancament).');
+  if (!a.lloc.length) errors.push('Tria almenys un lloc.');
+  if (!['suau', 'mitjana', 'intensa'].includes(a.intensitat)) errors.push('Intensitat no vàlida.');
+  if (!(a.durada_min >= 1)) errors.push('La durada mínima ha de ser d’almenys 1 minut.');
+  if (!(a.durada_max >= a.durada_min)) errors.push('La durada màxima no pot ser més petita que la mínima.');
+  if (!(a.edat_min >= 0 && a.edat_max >= a.edat_min)) errors.push('El rang d’edats no és coherent.');
+  if (a.url && !/^https?:\/\//.test(a.url)) errors.push('L’enllaç ha de començar per http:// o https://.');
+  return errors;
+}
+function netejaSlug(text) {
+  return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'activitat';
+}
+function generaIdUnic(nom, cataleg) {
+  const base = netejaSlug(nom);
+  const ids = new Set(cataleg.map(a => a.id));
+  if (!ids.has(base)) return base;
+  let n = 2;
+  while (ids.has(base + '-' + n)) n++;
+  return base + '-' + n;
 }
 
 autenticacio.onAuthStateChanged(async u => {
@@ -606,6 +653,177 @@ function vistaSessio() {
   }
 }
 
+const estatActivitats = { cerca: '', dimensio: 'totes', editant: null };
+
+function vistaActivitats() {
+  if (estatActivitats.editant !== null) { vistaFormActivitat(); return; }
+  let html = '<h1>Activitats</h1>';
+  html += '<button class="secundari" id="btn-nova-activitat">+ Afegeix una activitat</button>';
+  html += '<input class="cerca" id="cerca-activitats" type="search" placeholder="Cerca per nom o descripció" value="' + esc(estatActivitats.cerca) + '">';
+  html += '<div class="segments" id="seg-dim-filtre">';
+  for (const [valor, nom] of [['totes', 'Totes'], ['mental', 'Mental'], ['fisic', 'Físic'], ['espiritual', 'Espiritual']]) {
+    html += '<button data-dim="' + valor + '"' + (estatActivitats.dimensio === valor ? ' class="actiu"' : '') + '>' + nom + '</button>';
+  }
+  html += '</div><div id="llista-activitats"></div>';
+  app.innerHTML = html;
+  pintaLlistaActivitats();
+
+  app.querySelector('#btn-nova-activitat').addEventListener('click', () => {
+    estatActivitats.editant = 'nova';
+    vistaActivitats();
+  });
+  app.querySelector('#cerca-activitats').addEventListener('input', e => {
+    estatActivitats.cerca = e.target.value;
+    pintaLlistaActivitats();
+  });
+  app.querySelector('#seg-dim-filtre').addEventListener('click', e => {
+    const b = e.target.closest('button[data-dim]');
+    if (!b) return;
+    estatActivitats.dimensio = b.dataset.dim;
+    app.querySelectorAll('#seg-dim-filtre button').forEach(x => x.classList.toggle('actiu', x === b));
+    pintaLlistaActivitats();
+  });
+  app.querySelector('#llista-activitats').addEventListener('click', e => {
+    const edita = e.target.closest('button[data-edita]');
+    if (edita) {
+      estatActivitats.editant = edita.dataset.edita;
+      vistaActivitats();
+      return;
+    }
+    const esborra = e.target.closest('button[data-esborra-act]');
+    if (esborra) {
+      const id = esborra.dataset.esborraAct;
+      const activitat = dades.cataleg.find(a => a.id === id);
+      if (!activitat) return;
+      if (confirm('Segur que vols esborrar «' + activitat.nom + '»? Les sessions antigues de l’historial la mostraran pel seu identificador.')) {
+        dades.cataleg = dades.cataleg.filter(a => a.id !== id);
+        esborraActivitat(id);
+        pintaLlistaActivitats();
+        toast('Activitat esborrada.');
+      }
+    }
+  });
+}
+
+function pintaLlistaActivitats() {
+  const contenidor = document.getElementById('llista-activitats');
+  if (!contenidor) return;
+  const cerca = estatActivitats.cerca.trim().toLowerCase();
+  const seleccio = dades.cataleg
+    .filter(a =>
+      (estatActivitats.dimensio === 'totes' || a.dimensions.includes(estatActivitats.dimensio)) &&
+      (!cerca || (a.nom + ' ' + (a.descripcio || '')).toLowerCase().includes(cerca)))
+    .sort((x, y) => x.nom.localeCompare(y.nom, 'ca'));
+  if (!seleccio.length) {
+    contenidor.innerHTML = '<div class="buit"><p>' + (dades.cataleg.length ? 'Cap activitat coincideix amb la cerca.' : 'El catàleg és buit. Afegeix la primera activitat!') + '</p></div>';
+    return;
+  }
+  contenidor.innerHTML = seleccio.map(a => {
+    let h = '<div class="targeta">';
+    h += '<div class="bloc-cap"><span class="bloc-tipus">' + a.funcio.map(f => NOM_BLOC[f]).join(' · ') + '</span>';
+    h += '<span class="minuts">' + a.durada_min + '-' + a.durada_max + ' min</span></div>';
+    h += '<h3>' + esc(a.nom) + '</h3>';
+    h += chipsDims(a.dimensions);
+    if (a.descripcio) h += '<p class="detall">' + esc(a.descripcio) + '</p>';
+    h += '<p class="detall">Edats ' + a.edat_min + '-' + a.edat_max + ' · ' + a.intensitat + ' · ' + a.lloc.join(' i ') +
+      (a.materials && a.materials !== 'cap' ? ' · Materials: ' + esc(a.materials) : '') + '</p>';
+    if (a.url) h += '<p class="detall"><a href="' + esc(a.url) + '" target="_blank" rel="noopener">Veure la font ↗</a></p>';
+    h += '<div class="accions-fila"><button class="petit" data-edita="' + esc(a.id) + '">✎ Edita</button>';
+    h += '<button class="petit perill" data-esborra-act="' + esc(a.id) + '">Esborra</button></div>';
+    h += '</div>';
+    return h;
+  }).join('');
+}
+
+function vistaFormActivitat(errors) {
+  const esNova = estatActivitats.editant === 'nova';
+  const original = esNova
+    ? { nom: '', descripcio: '', url: '', dimensions: [], funcio: ['nucli'], durada_min: 5, durada_max: 15, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 12, materials: 'cap' }
+    : dades.cataleg.find(a => a.id === estatActivitats.editant);
+  if (!original) {
+    estatActivitats.editant = null;
+    vistaActivitats();
+    return;
+  }
+  const valors = window._esborranyActivitat || original;
+  let html = '<h1>' + (esNova ? 'Nova activitat' : 'Edita l’activitat') + '</h1><div class="formulari">';
+  html += '<label class="etiqueta" for="act-nom">Nom</label><input type="text" id="act-nom" value="' + esc(valors.nom) + '">';
+  html += '<label class="etiqueta" for="act-desc">Descripció</label><textarea id="act-desc">' + esc(valors.descripcio || '') + '</textarea>';
+  html += '<label class="etiqueta" for="act-url">Enllaç a la font (opcional)</label><input type="url" id="act-url" value="' + esc(valors.url || '') + '" placeholder="https://...">';
+  html += '<span class="etiqueta">Dimensions que treballa</span><div class="grup-caselles" id="grup-dims">';
+  for (const d of DIMENSIONS) {
+    html += '<label><input type="checkbox" value="' + d + '"' + (valors.dimensions.includes(d) ? ' checked' : '') + '>' + NOM_DIM[d] + '</label>';
+  }
+  html += '</div>';
+  html += '<span class="etiqueta">On encaixa dins la sessió</span><div class="grup-caselles" id="grup-funcio">';
+  for (const f of ['obertura', 'nucli', 'tancament']) {
+    html += '<label><input type="checkbox" value="' + f + '"' + (valors.funcio.includes(f) ? ' checked' : '') + '>' + NOM_BLOC[f] + '</label>';
+  }
+  html += '</div>';
+  html += '<div class="fila-dos"><div><label class="etiqueta" for="act-dmin">Minuts mínims</label><input type="number" id="act-dmin" min="1" max="120" value="' + valors.durada_min + '"></div>';
+  html += '<div><label class="etiqueta" for="act-dmax">Minuts màxims</label><input type="number" id="act-dmax" min="1" max="120" value="' + valors.durada_max + '"></div></div>';
+  html += '<span class="etiqueta">Intensitat</span><div class="segments" id="grup-intensitat">';
+  for (const [valor, nom] of [['suau', 'Suau'], ['mitjana', 'Mitjana'], ['intensa', 'Intensa']]) {
+    html += '<button type="button" data-int="' + valor + '"' + (valors.intensitat === valor ? ' class="actiu"' : '') + '>' + nom + '</button>';
+  }
+  html += '</div>';
+  html += '<span class="etiqueta">Lloc</span><div class="grup-caselles" id="grup-lloc">';
+  for (const [valor, nom] of [['interior', 'Interior'], ['exterior', 'Exterior']]) {
+    html += '<label><input type="checkbox" value="' + valor + '"' + (valors.lloc.includes(valor) ? ' checked' : '') + '>' + nom + '</label>';
+  }
+  html += '</div>';
+  html += '<div class="fila-dos"><div><label class="etiqueta" for="act-emin">Edat mínima</label><input type="number" id="act-emin" min="0" max="18" value="' + valors.edat_min + '"></div>';
+  html += '<div><label class="etiqueta" for="act-emax">Edat màxima</label><input type="number" id="act-emax" min="0" max="18" value="' + valors.edat_max + '"></div></div>';
+  html += '<label class="etiqueta" for="act-materials">Materials</label><input type="text" id="act-materials" value="' + esc(valors.materials || 'cap') + '">';
+  html += (errors && errors.length) ? '<div class="error-caixa">' + errors.map(esc).join('<br>') + '</div>' : '';
+  html += '<button class="gran" id="btn-desa-activitat">Desa l’activitat</button>';
+  html += '<button class="secundari" id="btn-cancela">Cancel·la</button>';
+  html += '</div>';
+  app.innerHTML = html;
+
+  app.querySelector('#grup-intensitat').addEventListener('click', e => {
+    const b = e.target.closest('button[data-int]');
+    if (!b) return;
+    app.querySelectorAll('#grup-intensitat button').forEach(x => x.classList.toggle('actiu', x === b));
+  });
+  const cull = () => ({
+    id: esNova ? null : original.id,
+    nom: document.getElementById('act-nom').value.trim(),
+    descripcio: document.getElementById('act-desc').value.trim(),
+    url: document.getElementById('act-url').value.trim(),
+    dimensions: Array.from(app.querySelectorAll('#grup-dims input:checked')).map(x => x.value),
+    funcio: Array.from(app.querySelectorAll('#grup-funcio input:checked')).map(x => x.value),
+    durada_min: Number(document.getElementById('act-dmin').value),
+    durada_max: Number(document.getElementById('act-dmax').value),
+    intensitat: (app.querySelector('#grup-intensitat button.actiu') || {}).dataset ? app.querySelector('#grup-intensitat button.actiu').dataset.int : '',
+    lloc: Array.from(app.querySelectorAll('#grup-lloc input:checked')).map(x => x.value),
+    edat_min: Number(document.getElementById('act-emin').value),
+    edat_max: Number(document.getElementById('act-emax').value),
+    materials: document.getElementById('act-materials').value.trim() || 'cap'
+  });
+  app.querySelector('#btn-desa-activitat').addEventListener('click', () => {
+    const activitat = cull();
+    const errors = validaActivitat(activitat);
+    if (errors.length) {
+      window._esborranyActivitat = activitat;
+      vistaFormActivitat(errors);
+      window._esborranyActivitat = null;
+      return;
+    }
+    if (!activitat.id) activitat.id = generaIdUnic(activitat.nom, dades.cataleg);
+    const posicio = dades.cataleg.findIndex(a => a.id === activitat.id);
+    if (posicio >= 0) dades.cataleg[posicio] = activitat; else dades.cataleg.push(activitat);
+    desaActivitat(activitat);
+    estatActivitats.editant = null;
+    vistaActivitats();
+    toast('Activitat desada.');
+  });
+  app.querySelector('#btn-cancela').addEventListener('click', () => {
+    estatActivitats.editant = null;
+    vistaActivitats();
+  });
+}
+
 function vistaHistorial() {
   let html = '<h1>Historial</h1>';
   if (!dades.historial.length) {
@@ -854,6 +1072,26 @@ function executaTests() {
     }
   });
 
+  prova('validació d’activitats: detecta els camps incoherents', () => {
+    asserta(validaActivitat(CATALEG_EXEMPLE[0]).length === 0, 'una activitat del catàleg d’exemple hauria de ser vàlida');
+    const base = JSON.parse(JSON.stringify(CATALEG_EXEMPLE[0]));
+    asserta(validaActivitat(Object.assign({}, base, { nom: '  ' })).length > 0, 'nom buit');
+    asserta(validaActivitat(Object.assign({}, base, { dimensions: [] })).length > 0, 'sense dimensions');
+    asserta(validaActivitat(Object.assign({}, base, { funcio: [] })).length > 0, 'sense funció');
+    asserta(validaActivitat(Object.assign({}, base, { durada_min: 10, durada_max: 5 })).length > 0, 'durades invertides');
+    asserta(validaActivitat(Object.assign({}, base, { edat_min: 9, edat_max: 3 })).length > 0, 'edats invertides');
+    asserta(validaActivitat(Object.assign({}, base, { url: 'exemple.com' })).length > 0, 'url sense protocol');
+    asserta(validaActivitat(Object.assign({}, base, { intensitat: 'brutal' })).length > 0, 'intensitat inventada');
+  });
+
+  prova('identificadors: slug net i únic', () => {
+    asserta(netejaSlug('Córrer màgic!') === 'correr-magic', 'slug amb accents: ' + netejaSlug('Córrer màgic!'));
+    asserta(netejaSlug('   ') === 'activitat', 'slug buit ha de tenir valor per defecte');
+    asserta(generaIdUnic('Nova activitat', []) === 'nova-activitat', 'id base');
+    const cataleg = [{ id: 'nova-activitat' }, { id: 'nova-activitat-2' }];
+    asserta(generaIdUnic('Nova activitat', cataleg) === 'nova-activitat-3', 'col·lisió doble: ' + generaIdUnic('Nova activitat', cataleg));
+  });
+
   prova('relaxació: si tot el catàleg és recent, genera igualment', () => {
     const ahir = new Date(Date.now() - 86400000).toISOString();
     const historial = [{ data: ahir, durada: 60, activitats: CATALEG_EXEMPLE.map(a => ({ id: a.id, bloc: 'nucli', dimensions: a.dimensions, minuts: 5 })), dimensions_descartades: [] }];
@@ -881,7 +1119,7 @@ function vistaTests() {
 /* ============================================================
    7. ROUTER
    ============================================================ */
-const rutes = { '/generar': vistaGenerar, '/sessio': vistaSessio, '/historial': vistaHistorial, '/parametres': vistaParametres };
+const rutes = { '/generar': vistaGenerar, '/sessio': vistaSessio, '/activitats': vistaActivitats, '/historial': vistaHistorial, '/parametres': vistaParametres };
 function navega() {
   const ruta = location.hash.replace('#', '') || '/generar';
   const barra = document.querySelector('nav');
@@ -911,7 +1149,8 @@ function navega() {
 }
 function renavega() {
   const actiu = document.activeElement;
-  if (actiu && app.contains(actiu) && actiu.tagName === 'INPUT') return;
+  if (actiu && app.contains(actiu) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(actiu.tagName)) return;
+  if (estatActivitats.editant !== null) return;
   navega();
 }
 window.addEventListener('hashchange', navega);

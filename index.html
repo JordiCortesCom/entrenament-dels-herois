@@ -461,8 +461,8 @@ function vistaParametres() {
     const edat = f.naixement ? edatAnys(f.naixement, ara) : null;
     html += '<div class="fila-fill">';
     html += '<input type="text" placeholder="Nom (opcional)" value="' + esc(f.nom || '') + '" data-camp="nom" data-i="' + i + '">';
-    html += '<input type="date" value="' + esc(f.naixement || '') + '" data-camp="naixement" data-i="' + i + '">';
-    html += edat !== null ? '<span class="detall">' + edat + ' anys</span>' : '';
+    html += '<input type="date" value="' + esc(f.naixement || '') + '" min="1990-01-01" max="' + ara.toISOString().slice(0, 10) + '" data-camp="naixement" data-i="' + i + '">';
+    html += '<span class="detall" data-edat="' + i + '">' + (edat !== null ? edat + ' anys' : '') + '</span>';
     html += '<button class="petit perill" data-esborra="' + i + '">Esborra</button>';
     html += '</div>';
   });
@@ -482,7 +482,10 @@ function vistaParametres() {
     if (!inp) return;
     dades.parametres.fills[Number(inp.dataset.i)][inp.dataset.camp] = inp.value;
     desa();
-    vistaParametres();
+    if (inp.dataset.camp === 'naixement') {
+      const etiqueta = app.querySelector('span[data-edat="' + inp.dataset.i + '"]');
+      if (etiqueta) etiqueta.textContent = inp.value ? edatAnys(inp.value, new Date()) + ' anys' : '';
+    }
   });
   app.querySelector('#llista-fills').addEventListener('click', e => {
     const esb = e.target.closest('button[data-esborra]');
@@ -497,7 +500,7 @@ function vistaParametres() {
       return;
     }
     if (e.target.closest('#btn-afegeix-fill')) {
-      dades.parametres.fills.push({ nom: '', naixement: '' });
+      dades.parametres.fills.push({ nom: '', naixement: '2000-01-01' });
       desa();
       vistaParametres();
     }

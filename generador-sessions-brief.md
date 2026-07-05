@@ -1,0 +1,221 @@
+# Generador de sessions d'entrenament integral per a nens
+
+Document de disseny per crear el projecte amb Claude Code.
+
+---
+
+## 1. Context i objectiu
+
+L'usuari té recursos d'activitats i jocs per fer amb els seus fills (majoritàriament enllaços web guardats) i vol una eina que li permeti generar rutines completes d'entrenament integral (mental + físic + espiritual) amb pocs clics.
+
+**Objectiu final:** quan l'usuari vulgui fer una sessió amb els nens, el sistema ha de compondre una rutina sencera de zero basant-se en un catàleg d'activitats definit prèviament.
+
+---
+
+## 2. Requisits funcionals
+
+### Requisits clau
+- Les sessions sempre cobreixen les tres dimensions (mental + físic + espiritual)
+- La durada de la sessió és variable i es decideix al moment
+- Els fills tenen edats diferents i fan la sessió conjuntament (les activitats triades han de ser aptes per al rang d'edat complet)
+- El sistema recorda quines activitats s'han fet recentment per evitar repeticions
+- Ús indistint en mòbil i ordinador
+
+### Estructura d'una sessió
+Cada sessió generada té tres blocs:
+1. **Obertura** — activació suau (~10-15% del temps total)
+2. **Nucli** — una activitat de cada dimensió: mental, física, espiritual (~70-80% del temps)
+3. **Tancament** — calma i integració (~10-15% del temps)
+
+---
+
+## 3. Model de dades
+
+Cada activitat es representa com un objecte JSON:
+
+```json
+{
+  "id": "resp-flor",
+  "nom": "Respiració de la flor",
+  "descripcio": "Inspira imaginant que oloraves una flor, expira bufant espelmes",
+  "url": "https://exemple.com/respiracio-flor",
+  "dimensions": ["espiritual", "mental"],
+  "funcio": ["obertura", "tancament"],
+  "durada_min": 3,
+  "durada_max": 7,
+  "intensitat": "suau",
+  "lloc": ["interior", "exterior"],
+  "edat_min": 3,
+  "edat_max": 10,
+  "materials": "cap"
+}
+```
+
+### Valors possibles dels camps
+
+| Camp | Tipus | Valors |
+|---|---|---|
+| `id` | string | Identificador únic |
+| `nom` | string | Nom curt de l'activitat |
+| `descripcio` | string | Descripció breu |
+| `url` | string | Enllaç a la font original (opcional) |
+| `dimensions` | array | Un o més de: `mental`, `fisic`, `espiritual` |
+| `funcio` | array | Un o més de: `obertura`, `nucli`, `tancament` |
+| `durada_min` | número | Minuts mínims |
+| `durada_max` | número | Minuts màxims |
+| `intensitat` | string | `suau` \| `mitjana` \| `intensa` |
+| `lloc` | array | Un o més de: `interior`, `exterior` |
+| `edat_min` | número | Edat mínima recomanada |
+| `edat_max` | número | Edat màxima recomanada |
+| `materials` | string | Text lliure (`cap`, `paper i llapis`...) |
+
+L'historial de sessions fetes també viu al localStorage amb aquesta forma:
+
+```json
+{
+  "data": "2026-07-05T18:30:00Z",
+  "durada": 30,
+  "activitats": ["resp-flor", "id-activitat-2", ...]
+}
+```
+
+---
+
+## 4. Interfície d'usuari
+
+### Pantalla 1 — Generar sessió (principal)
+
+Formulari amb:
+- Selector de **durada total** (opcions ràpides: 15/30/45/60 min, o entrada lliure)
+- Selector de **lloc** (interior / exterior / qualsevol)
+- Selector d'**intensitat global** (suau / normal / intensa)
+- Botó gran **"Genera sessió"**
+
+Les edats dels fills es configuren un cop a Paràmetres i s'apliquen sempre.
+
+### Pantalla 2 — Sessió generada
+
+Mostra la rutina composta amb els tres blocs:
+- Bloc d'obertura (nom, durada, descripció, enllaç)
+- Bloc de nucli amb tres activitats (una per dimensió, etiquetades visualment)
+- Bloc de tancament
+
+Accions per activitat:
+- **Substitueix aquesta activitat** (busca una altra compatible)
+
+Accions globals:
+- **Regenera sessió sencera**
+- **Marca com a feta** (guarda a l'historial i torna a la pantalla 1)
+
+### Pantalla 3 — Gestió d'activitats
+
+CRUD sobre el catàleg:
+- Llistat amb cerca i filtres
+- Alta / edició / esborrat
+- Import/export del catàleg com a JSON (backup i sincronització manual entre dispositius)
+
+### Pantalla 4 — Historial
+
+- Llistat de sessions fetes amb data i activitats
+- Utilitzat per la lògica de no-repetició
+
+### Pantalla 5 — Paràmetres
+
+- Rang d'edats dels fills (mín/màx)
+- Configuració del període de no-repetició (dies)
+
+---
+
+## 5. Lògica de composició
+
+Algorisme al generar una sessió:
+
+1. **Càlcul de temps per bloc**
+   - Obertura: ~10% de la durada total (mínim 3 min)
+   - Tancament: ~10% de la durada total (mínim 3 min)
+   - Nucli: la resta, repartida entre les tres dimensions
+
+2. **Filtres previs** aplicats a tot el catàleg:
+   - Compatibilitat d'edat: `edat_min ≤ edat mínima dels fills` **i** `edat_max ≥ edat màxima dels fills`
+   - `lloc` compatible amb el seleccionat
+   - `intensitat` compatible (una sessió suau només pot tenir activitats suaus; una intensa pot tenir de qualsevol nivell)
+   - Excloure activitats fetes fa menys de X dies (per defecte 7)
+   - Penalitzar activitats fetes fa entre 7 i 21 dies (menys probabilitat de sortir)
+
+3. **Selecció d'obertura**: entre les activitats compatibles que tenen `obertura` a `funcio`, tria una a l'atzar amb pes segons historial
+
+4. **Selecció del nucli**: per a cada dimensió (mental, física, espiritual):
+   - Filtra activitats que tinguin `nucli` a `funcio` i incloguin aquesta dimensió
+   - Tria una a l'atzar dins del temps disponible
+   - Evita triar la mateixa activitat més d'un cop dins la sessió
+   - Si una activitat és multi-dimensió, pot cobrir dues dimensions si no queden alternatives (fallback)
+
+5. **Selecció de tancament**: com l'obertura però amb `funcio: tancament`
+
+6. **Ajust final de temps**: si la suma no coincideix amb la durada demanada, ajusta els minuts de cada activitat dins del seu rang `durada_min`-`durada_max`
+
+7. **Gestió d'errors**: si no hi ha prou activitats en alguna categoria, mostrar un missatge clar suggerint afegir-ne més (no fallar en silenci ni retornar sessions incompletes)
+
+---
+
+## 6. Restriccions tècniques
+
+- **Un sol fitxer HTML** amb tot inclòs (HTML + CSS + JS)
+- Sense dependències externes ni servidor
+- Emmagatzematge: `localStorage` del navegador
+- Import/export manual via JSON per sincronitzar entre dispositius
+- Disseny responsive: **mobile first**, funcional en escriptori
+- No cal login ni autenticació
+- Ha de funcionar offline un cop carregat
+
+---
+
+## 7. Dades d'exemple
+
+L'app s'ha de lliurar amb **8-10 activitats d'exemple** al catàleg per poder provar-se immediatament sense necessitat d'introduir dades. Aquestes activitats han de cobrir totes les combinacions de dimensions i funcions perquè el generador funcioni des del primer moment.
+
+---
+
+## 8. Prioritats de desenvolupament
+
+**Ordre suggerit:**
+1. Estructura de dades i localStorage
+2. Pantalla de gestió d'activitats (per poder crear/veure les dades)
+3. Lògica de composició de sessions
+4. Pantalla principal + pantalla de sessió generada
+5. Historial i lògica de no-repetició
+6. Import/export JSON
+7. Poliment visual i UX mòbil
+
+---
+
+## 9. Millores futures (fora del MVP)
+
+- Sincronització automàtica via Airtable API (activitats a Airtable, app només llegint)
+- Adaptació de descripcions amb un LLM per fer variacions creatives
+- Estadístiques d'ús (activitats més fetes, dimensions més treballades, temps total per dimensió al mes...)
+- Compartir sessions o exportar-les com a PDF
+- Mode multi-perfil per a diferents combinacions de fills
+- Notificacions o recordatoris
+
+---
+
+## 10. Decisions aclarides (2026-07-05)
+
+Respostes de l'usuari a les ambigüitats del brief:
+
+1. **Intensitat "normal"**: escala acumulativa — una sessió *suau* només admet activitats suaus; una *normal* admet suaus i mitjanes; una *intensa* admet els tres nivells.
+2. **Sessions curtes**: si en repartir el nucli alguna activitat quedaria per sota de **5 minuts**, es treballa amb **una dimensió menys** en aquesta sessió. La dimensió descartada es tria per **rotació segons historial**: es descarta la més treballada recentment, per mantenir l'equilibri al llarg del temps.
+3. **Dimensions d'obertura i tancament**: qualsevol activitat amb la funció adient serveix, però si hi ha candidates es **prioritzen les que cobreixen dimensions poc treballades** al nucli (especialment quan s'ha descartat una dimensió per sessió curta).
+4. **Edats**: a Paràmetres es guarden les **dates de naixement** dels fills; l'app calcula el rang d'edats automàticament (no cal actualitzar res quan fan anys).
+5. **Import/export JSON**: el fitxer inclou **catàleg + historial + paràmetres**. En importar es **fusiona per id**: actualitza activitats existents, afegeix les noves i no esborra res.
+6. **Distribució**: l'app es publicarà a una **URL** (p. ex. GitHub Pages) per usar-la al mòbil com a web afegible a la pantalla d'inici. El localStorage continua sent per dispositiu; la sincronització és l'import/export manual.
+
+---
+
+## 11. Notes finals per al desenvolupament
+
+- **Prioritat absoluta: pocs clics per generar sessió.** El flux "obro app → trio durada → toco generar → tinc sessió" ha de ser ràpid i sense fricció.
+- La gestió d'activitats és secundària: s'usa poc, no cal que sigui bonica, però ha de ser prou robusta per no perdre dades.
+- **L'aleatorietat ha de ser real**: dues sessions consecutives amb els mateixos paràmetres han de ser diferents.
+- L'usuari tindrà nens al voltant mentre fa servir l'app: text llegible, botons grossos, res de menús laberíntics.

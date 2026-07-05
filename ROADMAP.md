@@ -49,35 +49,41 @@ L'app mínima que valida la idea central.
 
 **Validació:** una setmana d'ús; les sessions consecutives no repeteixen activitats recents i cap dimensió queda sistemàticament oblidada.
 
-## Iteració 3 — Catàleg propi: CRUD d'activitats (`v0.3`)
+## Iteració 3 — Dades compartides: Firebase (`v0.3`)
+
+> **Canvi de pla (2026-07-05):** després de construir les v0.1/v0.2 es va decidir que les dades han de ser compartides entre diversos terminals. Les dades passen de `localStorage` a Firebase Firestore (pla gratuït). Restriccions revisades al brief, secció 6. Aquesta iteració va abans que el CRUD perquè el catàleg real ja s'introdueixi directament sobre dades compartides.
+
+**Abast:**
+- Projecte Firebase (pla Spark, gratuït): Firestore + Authentication amb un compte familiar (correu + contrasenya).
+- Model a Firestore: document de família amb els paràmetres, i subcol·leccions d'activitats i de sessions (mateix esquema JSON versionat que fins ara).
+- Regles de seguretat: només el compte familiar autenticat pot llegir i escriure les seves dades.
+- Capa de dades de l'app reescrita sobre Firestore; generador i UI no es toquen (per això la capa de dades estava aïllada).
+- Pantalla d'accés: credencials un cop per dispositiu, sessió recordada; missatge clar quan no hi ha connexió.
+- Migració automàtica: si el dispositiu té dades locals de les v0.1/v0.2, es pugen a Firestore en el primer accés.
+
+**Validació:** les mateixes dades es veuen des de mòbil i ordinador; una sessió marcada com a feta en un terminal apareix a l'historial de l'altre; la migració conserva l'historial i els paràmetres existents.
+
+## Iteració 4 — Catàleg propi: CRUD d'activitats (`v0.4`)
 
 **Abast:**
 - Pantalla **Activitats**: llistat amb cerca i filtres, alta, edició i esborrat, amb validació de camps.
-- Protecció contra pèrdua de dades (confirmació d'esborrat, escriptura validada a localStorage).
+- Protecció contra pèrdua de dades (confirmació d'esborrat, escriptura validada).
 
-**Validació:** migrar els recursos reals (enllaços guardats) al catàleg — 15-20 activitats pròpies — i generar sessions només amb elles. Aquesta és la prova de foc del model de dades.
+**Validació:** migrar els recursos reals (enllaços guardats) al catàleg — 15-20 activitats pròpies, des de qualsevol dispositiu — i generar sessions només amb elles. Aquesta és la prova de foc del model de dades.
 
-## Iteració 4 — Sincronització: import/export JSON (`v0.4`)
-
-**Abast:**
-- Export de tot (catàleg + historial + paràmetres) a un fitxer JSON descarregable, amb opció d'exportar sense historial.
-- Avís en exportar: el fitxer conté dades personals (dates de naixement, historial d'ús) i cal guardar-lo en lloc segur.
-- Import amb fusió per `id` (actualitza existents, afegeix noves, no esborra res) i validació del fitxer abans d'aplicar-lo.
-- Còpia automàtica de les dades locals abans d'aplicar qualsevol import (recuperable si l'import surt malament).
-
-**Validació:** cicle complet PC → fitxer → mòbil i tornada, sense pèrdua ni duplicats.
-
-## Iteració 5 — Poliment i offline (`v1.0`)
+## Iteració 5 — Còpia de seguretat i poliment (`v1.0`)
 
 **Abast:**
-- Repàs UX mòbil: mides tàctils, llegibilitat, estats buits, missatges d'error amables.
-- Service worker (`sw.js`, única excepció al fitxer únic) per funcionar offline de veritat.
+- Export de tot (catàleg + historial + paràmetres) a un fitxer JSON descarregable — còpia de seguretat sota control de l'usuari, amb avís de dades personals i opció d'exportar sense historial.
+- Import amb fusió per `id` i validació del fitxer, amb còpia automàtica prèvia (recuperació de desastres si el backend o un import fallen).
+- Repàs UX mòbil: mides tàctils, llegibilitat, estats buits, missatges d'error amables (inclosos els de connexió).
 - Revisió final de tot el flux i neteja de codi.
+- *(Descartat el service worker offline: sense connexió no hi ha dades; l'app mostra un missatge honest en lloc de fingir que funciona.)*
 
-**Validació:** ús quotidià sense friccions; l'app s'obre i genera sessions en mode avió.
+**Validació:** ús quotidià sense friccions des de dos terminals; el cicle export → esborrar → import recupera les dades exactes.
 
 ---
 
 ## Després de la v1.0 (idees, sense compromís)
 
-Les de la secció 9 del brief: sincronització via Airtable, variacions de descripcions amb LLM, estadístiques d'ús, export PDF, multi-perfil, recordatoris. Es prioritzaran segons l'ús real.
+Les de la secció 9 del brief que segueixen vives: variacions de descripcions amb LLM, estadístiques d'ús, export PDF, multi-perfil, recordatoris. (La sincronització via Airtable queda descartada: la cobreix Firebase des de la v0.3.) Es prioritzaran segons l'ús real.

@@ -183,15 +183,17 @@ Algorisme al generar una sessió:
 
 ---
 
-## 6. Restriccions tècniques
+## 6. Restriccions tècniques (revisades el 2026-07-05)
 
-- **Un sol fitxer HTML** amb tot inclòs (HTML + CSS + JS)
-- Sense dependències externes ni servidor
-- Emmagatzematge: `localStorage` del navegador
-- Import/export manual via JSON per sincronitzar entre dispositius
+- **Un sol fitxer HTML** amb tot el codi propi (HTML + CSS + JS); l'única dependència externa admesa és l'SDK de Firebase carregat per CDN
+- **Backend: Firebase Firestore** — les dades són compartides entre tots els dispositius de la família
+- **Autenticació: un compte familiar** (correu + contrasenya amb Firebase Auth), introduït un cop per dispositiu i recordat
+- Export manual a JSON com a **còpia de seguretat** (deixa de ser el mecanisme de sincronització)
 - Disseny responsive: **mobile first**, funcional en escriptori
-- No cal login ni autenticació
-- Ha de funcionar offline un cop carregat
+- Cal connexió a internet per fer servir l'app (l'offline es va descartar conscientment; sense connexió es mostra un missatge clar)
+- El `localStorage` queda només com a llegat: les dades existents dels dispositius es migren a Firestore en el primer accés
+
+> **Versió original d'aquestes restriccions (vigent fins a la v0.2):** un sol fitxer sense cap dependència ni servidor, dades al `localStorage`, sense login, funcionament offline. El canvi es va decidir amb l'ús: la prioritat de compartir dades entre terminals va passar per davant de l'autonomia total del fitxer únic.
 
 ---
 
@@ -234,7 +236,8 @@ Respostes de l'usuari a les ambigüitats del brief:
 3. **Dimensions d'obertura i tancament**: qualsevol activitat amb la funció adient serveix, però si hi ha candidates es **prioritzen les que cobreixen dimensions poc treballades** al nucli (especialment quan s'ha descartat una dimensió per sessió curta).
 4. **Edats**: a Paràmetres es guarden les **dates de naixement** dels fills; l'app calcula el rang d'edats automàticament (no cal actualitzar res quan fan anys).
 5. **Import/export JSON**: el fitxer inclou **catàleg + historial + paràmetres**. En importar es **fusiona per id**: actualitza activitats existents, afegeix les noves i no esborra res.
-6. **Distribució**: l'app es publicarà a una **URL** (p. ex. GitHub Pages) per usar-la al mòbil com a web afegible a la pantalla d'inici. El localStorage continua sent per dispositiu; la sincronització és l'import/export manual.
+6. **Distribució**: l'app es publicarà a una **URL** (p. ex. GitHub Pages) per usar-la al mòbil com a web afegible a la pantalla d'inici. ~~El localStorage continua sent per dispositiu; la sincronització és l'import/export manual.~~ *(Substituït per la decisió 7.)*
+7. **Dades compartides (2026-07-05, després de les v0.1/v0.2)**: les dades passen a **Firebase Firestore** amb un **compte familiar** (correu + contrasenya), compartides entre tots els terminals en temps real. L'offline es descarta (l'app requereix connexió). L'export/import JSON es manté només com a còpia de seguretat. Vegeu les restriccions revisades a la secció 6.
 
 ---
 

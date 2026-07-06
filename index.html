@@ -7,6 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/escut-icona-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/escut-icona-512.png">
+<link rel="apple-touch-icon" href="assets/escut-icona-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a365d">
 <style>
 :root{
   --fons:#f8fafc; --tinta:#0f172a; --tinta-suau:#5b6b82;
@@ -73,7 +78,13 @@ nav a.actiu{color:var(--blau);background:var(--groc)}
 #toast.visible{opacity:1}
 .test-ok{color:#27500a}
 .test-ko{color:var(--error);font-weight:600}
-.buit{text-align:center;color:var(--tinta-suau);padding:40px 10px}
+.buit{text-align:center;color:var(--tinta-suau);padding:24px 10px}
+.marca{display:flex;align-items:center;gap:10px}
+.marca img{width:38px;height:38px;border-radius:8px;flex:none;box-shadow:var(--ombra)}
+.banner{width:100%;display:block;border-radius:var(--radi-targeta);margin:4px 0 8px;box-shadow:var(--ombra)}
+.heroi{display:block;width:220px;max-width:70%;margin:6px auto 10px;border-radius:var(--radi-targeta);box-shadow:var(--ombra)}
+.celebracio{text-align:center;border:2px solid var(--groc)}
+.celebracio h2{color:var(--blau);text-transform:none;letter-spacing:0;font-size:1.3rem;font-family:'Poppins',system-ui,sans-serif}
 .video{position:relative;width:100%;aspect-ratio:16/9;margin:10px 0;border-radius:10px;overflow:hidden;background:#000}
 .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .cerca{width:100%;font:inherit;font-size:1.05rem;padding:10px 12px;border:2px solid var(--vora);border-radius:10px;margin:8px 0;background:var(--targeta)}
@@ -274,7 +285,7 @@ function escoltaCanvis() {
   }
   const errorCarrega = () => {
     dades = null;
-    app.innerHTML = '<h1>⚡ Entrenament dels herois</h1><div class="error-caixa">No s’han pogut carregar les dades. Comprova la connexió a internet i recarrega la pàgina.</div>';
+    app.innerHTML = titolHtml() + '<div class="error-caixa">No s’han pogut carregar les dades. Comprova la connexió a internet i recarrega la pàgina.</div>';
   };
   aturaEscoltes.push(refFamilia.onSnapshot(d => { fam = d.data() || {}; combina(!d.metadata.hasPendingWrites); }, errorCarrega));
   aturaEscoltes.push(refFamilia.collection('activitats').onSnapshot(q => { cataleg = q.docs.map(d => d.data()); combina(!q.metadata.hasPendingWrites); }, errorCarrega));
@@ -401,7 +412,7 @@ autenticacio.onAuthStateChanged(async u => {
     await preparaFamilia();
     escoltaCanvis();
   } catch (e) {
-    app.innerHTML = '<h1>⚡ Entrenament dels herois</h1><div class="error-caixa">No s’han pogut preparar les dades de la família (' + esc(e.message || e) + '). Recarrega la pàgina per tornar-ho a provar.</div>';
+    app.innerHTML = titolHtml() + '<div class="error-caixa">No s’han pogut preparar les dades de la família (' + esc(e.message || e) + '). Recarrega la pàgina per tornar-ho a provar.</div>';
   }
 });
 
@@ -590,7 +601,16 @@ function substitueixActivitat(sessio, index, cataleg, parametres, historial, opc
    ============================================================ */
 const app = document.getElementById('app');
 let sessioActual = null;
+let celebrar = false;
 const prefs = { durada: 30, lloc: 'qualsevol', intensitat: 'normal' };
+const IMG_HEROIS = ['assets/aina.webp', 'assets/jan.webp'];
+function heroiSrc(i) {
+  const n = (typeof i === 'number') ? i : enterAtzar(2);
+  return IMG_HEROIS[((n % 2) + 2) % 2];
+}
+function titolHtml() {
+  return '<h1 class="marca"><img src="assets/escut-icona.webp" alt="Escut dels herois"><span>Entrenament dels herois</span></h1>';
+}
 
 function toast(missatge) {
   const t = document.getElementById('toast');
@@ -601,7 +621,8 @@ function toast(missatge) {
 }
 
 function vistaAcces(missatge) {
-  let html = '<h1>⚡ Entrenament dels herois</h1>';
+  let html = titolHtml();
+  html += '<img class="banner" src="' + heroiSrc() + '" alt="Els herois volant sobre la ciutat">';
   html += '<div class="targeta"><h3>Accés familiar</h3>';
   html += '<p class="detall">Entra amb el compte de la família. Només cal fer-ho un cop per dispositiu.</p>';
   html += '<input id="acces-correu" type="email" autocomplete="username" placeholder="Correu electrònic">';
@@ -650,7 +671,12 @@ function targetaActivitat(item, index) {
 function vistaGenerar() {
   const teFills = dades.parametres.fills.some(f => f.naixement);
   const duradesRapides = [15, 30, 45, 60];
-  let html = '<h1>⚡ Entrenament dels herois</h1>';
+  let html = titolHtml();
+  if (celebrar) {
+    html += '<div class="targeta celebracio"><img class="heroi" src="' + heroiSrc(dades.historial.length) + '" alt="Heroi celebrant">' +
+      '<h2>Bona feina, herois!</h2><p class="detall">Sessió guardada a l’historial.</p></div>';
+    celebrar = false;
+  }
   if (!teFills) {
     html += '<div class="avis">Primer pas: indica les dates de naixement dels teus fills a <a href="#/parametres">Paràmetres</a>.</div>';
   }
@@ -716,7 +742,7 @@ function vistaGenerar() {
 
 function vistaSessio() {
   if (!sessioActual) {
-    app.innerHTML = '<h1>Sessió</h1><div class="buit"><p>Encara no hi ha cap sessió generada.</p>' +
+    app.innerHTML = '<h1>Sessió</h1><div class="buit"><img class="heroi" src="' + heroiSrc() + '" alt="Heroi"><p>Encara no hi ha cap sessió generada.</p>' +
       '<p><a href="#/generar">Genera’n una →</a></p></div>';
     return;
   }
@@ -761,8 +787,8 @@ function vistaSessio() {
         dimensions_descartades: s.dimensions_descartades
       });
       sessioActual = null;
+      celebrar = true;
       location.hash = '#/generar';
-      toast('Sessió guardada. Bona feina, herois! 💪');
     }
   }
 }
@@ -941,7 +967,7 @@ function vistaFormActivitat(errors) {
 function vistaHistorial() {
   let html = '<h1>Historial</h1>';
   if (!dades.historial.length) {
-    html += '<div class="buit"><p>Encara no hi ha cap sessió feta.</p><p><a href="#/generar">Genera la primera →</a></p></div>';
+    html += '<div class="buit"><img class="heroi" src="' + heroiSrc() + '" alt="Heroi"><p>Encara no hi ha cap sessió feta.</p><p><a href="#/generar">Genera la primera →</a></p></div>';
     app.innerHTML = html;
     return;
   }
@@ -1312,7 +1338,7 @@ function navega() {
   }
   if (!dades) {
     barra.style.display = 'none';
-    app.innerHTML = '<h1>⚡ Entrenament dels herois</h1><div class="buit"><p>Carregant les dades…</p></div>';
+    app.innerHTML = titolHtml() + '<div class="buit"><p>Carregant les dades…</p></div>';
     return;
   }
   barra.style.display = 'flex';

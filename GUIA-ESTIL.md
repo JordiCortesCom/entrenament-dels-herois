@@ -49,6 +49,15 @@ Fonts de Google Fonts, carregades per CDN.
 **Línies de velocitat**
 - Línies diagonals primes de blau cel / gris molt clar al fons d'algunes seccions, per imitar l'efecte de vent i velocitat de les imatges. Sempre subtils, mai per sota de text dens.
 
+## Elements gràfics (carpeta `assets/`)
+
+Els personatges i el logotip, en WebP optimitzat (originals PNG a `assets/originals/`, fora de git):
+
+- `escut.webp` / `escut-icona.webp` — l'escut amb l'estrella daurada. És la **marca**: icona d'app (favicon, PWA, `apple-touch-icon` en PNG a `escut-icona-{180,192,512}.png`) i logotip petit al costat del títol.
+- `aina.webp` — la heroïna. `jan.webp` — l'heroi. Imatges d'acció horitzontals, s'usen com a **bàner** (pantalla d'accés) i com a **il·lustració** a la celebració en marcar una sessió com a feta i als estats buits. S'alternen perquè apareguin tots dos.
+
+Regla d'ús: poques imatges i amb aire al voltant. Els personatges no s'usen com a icones petites (són massa detallats); l'escut sí.
+
 ## Accessibilitat
 
 - El groc només porta text blau heroi a sobre (mai text clar): és l'única combinació amb prou contrast.

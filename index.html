@@ -64,6 +64,13 @@ button{font:inherit;cursor:pointer;border:none;border-radius:var(--radi);transit
 .chip-fisic{background:var(--fisic-fons);color:var(--fisic)}
 .chip-espiritual{background:var(--espiritual-fons);color:var(--espiritual)}
 .chip-social{background:var(--social-fons);color:var(--social)}
+.dims-filtre button{font-weight:700;flex:1 1 40%}
+.dims-filtre button.inactiu{color:var(--tinta-suau);border-color:var(--vora);background:var(--targeta);opacity:.5;text-decoration:line-through}
+.dims-filtre button.actiu{color:#fff}
+.dims-filtre button.dim-mental.actiu{background:var(--mental);border-color:var(--mental)}
+.dims-filtre button.dim-fisic.actiu{background:var(--fisic);border-color:var(--fisic)}
+.dims-filtre button.dim-espiritual.actiu{background:var(--espiritual);border-color:var(--espiritual)}
+.dims-filtre button.dim-social.actiu{background:var(--social);border-color:var(--social)}
 .detall{font-size:.95rem;color:var(--tinta-suau);margin:4px 0}
 .avis{background:#faeeda;color:#633806;border-radius:var(--radi);padding:12px 16px;margin:12px 0}
 .error-caixa{background:var(--error-fons);color:var(--error);border-radius:var(--radi);padding:12px 16px;margin:12px 0}
@@ -521,9 +528,10 @@ function generaSessio(peticio, cataleg, parametres, historial, opcions) {
   if (!base.length) return errorSessio('Cap activitat del catàleg encaixa amb aquests filtres (edats ' + edats.min + '-' + edats.max + ', ' + peticio.lloc + ', ' + peticio.intensitat + '). Prova amb altres opcions o afegeix activitats.');
 
   const blocs = calculaBlocs(peticio.durada);
-  const dimsAmbCataleg = DIMENSIONS.filter(d => cataleg.some(a => a.funcio.includes('nucli') && a.dimensions.includes(d)));
-  const senseActivitats = DIMENSIONS.filter(d => !dimsAmbCataleg.includes(d));
-  if (!dimsAmbCataleg.length) return errorSessio('El catàleg no té cap activitat de nucli. Afegeix-ne per poder generar sessions.');
+  const demanades = (peticio.dimensions && peticio.dimensions.length) ? DIMENSIONS.filter(d => peticio.dimensions.includes(d)) : DIMENSIONS.slice();
+  const dimsAmbCataleg = demanades.filter(d => cataleg.some(a => a.funcio.includes('nucli') && a.dimensions.includes(d)));
+  const senseActivitats = demanades.filter(d => !dimsAmbCataleg.includes(d));
+  if (!dimsAmbCataleg.length) return errorSessio('Cap de les dimensions triades té activitats de nucli al catàleg. Activa’n d’altres o afegeix activitats al catàleg.');
   const treballRecent = minutsPerDimensio(historial || [], ara, parametres.dies_penalitzacio || 21);
   let dims = baralla(dimsAmbCataleg);
   dims.sort((x, y) => treballRecent[x] - treballRecent[y]);
@@ -585,7 +593,7 @@ function generaSessio(peticio, cataleg, parametres, historial, opcions) {
     ok: true,
     sessio: {
       creada: ara.toISOString(),
-      peticio: { durada: peticio.durada, lloc: peticio.lloc, intensitat: peticio.intensitat },
+      peticio: { durada: peticio.durada, lloc: peticio.lloc, intensitat: peticio.intensitat, dimensions: demanades },
       dimensions_descartades: descartades,
       dimensions_sense_activitats: senseActivitats,
       activitats: totes
@@ -637,7 +645,7 @@ function substitueixActivitat(sessio, index, cataleg, parametres, historial, opc
 const app = document.getElementById('app');
 let sessioActual = null;
 let celebrar = false;
-const prefs = { durada: 30, lloc: 'qualsevol', intensitat: 'normal' };
+const prefs = { durada: 30, lloc: 'qualsevol', intensitat: 'normal', dimensions: DIMENSIONS.slice() };
 const IMG_HEROIS = ['assets/aina.webp', 'assets/jan.webp'];
 function heroiSrc(i) {
   const n = (typeof i === 'number') ? i : enterAtzar(2);
@@ -735,6 +743,13 @@ function vistaGenerar() {
   }
   html += '</div>';
 
+  html += '<h2>Dimensions a treballar</h2><div class="segments dims-filtre" id="seg-dimensions">';
+  for (const d of DIMENSIONS) {
+    const activa = prefs.dimensions.includes(d);
+    html += '<button data-dim-toggle="' + d + '" class="dim-' + d + (activa ? ' actiu' : ' inactiu') + '" aria-pressed="' + activa + '">' + NOM_DIM[d] + '</button>';
+  }
+  html += '</div><p class="detall">Toca-les per activar-les o desactivar-les (mínim una).</p>';
+
   html += '<button class="gran" id="btn-genera">Genera sessió</button>';
   html += '<div id="lloc-error"></div>';
   app.innerHTML = html;
@@ -762,6 +777,18 @@ function vistaGenerar() {
     const b = e.target.closest('button[data-intensitat]');
     if (!b) return;
     prefs.intensitat = b.dataset.intensitat;
+    vistaGenerar();
+  });
+  app.querySelector('#seg-dimensions').addEventListener('click', e => {
+    const b = e.target.closest('button[data-dim-toggle]');
+    if (!b) return;
+    const d = b.dataset.dimToggle;
+    if (prefs.dimensions.includes(d)) {
+      if (prefs.dimensions.length === 1) { toast('Cal deixar activa com a mínim una dimensió.'); return; }
+      prefs.dimensions = prefs.dimensions.filter(x => x !== d);
+    } else {
+      prefs.dimensions = DIMENSIONS.filter(x => prefs.dimensions.includes(x) || x === d);
+    }
     vistaGenerar();
   });
   app.querySelector('#btn-genera').addEventListener('click', () => {
@@ -1357,6 +1384,26 @@ function executaTests() {
     asserta(fusio.afegides === 1 && fusio.actualitzades === 1, 'recompte: ' + fusio.afegides + '/' + fusio.actualitzades);
     const noves = sessionsNoves([{ data: '2026-07-01T10:00:00Z' }], [{ data: '2026-07-01T10:00:00Z' }, { data: '2026-07-02T10:00:00Z' }]);
     asserta(noves.length === 1 && noves[0].data === '2026-07-02T10:00:00Z', 'les sessions repetides no s’han de duplicar');
+  });
+
+  prova('dimensions seleccionades: el nucli només cobreix les triades', () => {
+    for (const trio of [['mental'], ['fisic', 'social'], ['mental', 'espiritual', 'social']]) {
+      for (let i = 0; i < 4; i++) {
+        const r = generaSessio({ durada: 45, lloc: 'qualsevol', intensitat: 'intensa', dimensions: trio }, CATALEG_EXEMPLE, paramsProva, []);
+        asserta(r.ok, 'ha de generar amb ' + trio + ': ' + (r.error || ''));
+        const cobertes = new Set();
+        r.sessio.activitats.filter(x => x.bloc === 'nucli').forEach(x => x.dimensions.forEach(d => cobertes.add(d)));
+        for (const d of cobertes) asserta(trio.includes(d), 'ha cobert ' + d + ', que no estava triada (' + trio + ')');
+      }
+    }
+  });
+
+  prova('dimensions seleccionades: cap peça de nucli si la triada no té catàleg', () => {
+    const catalegSenseSocial = CATALEG_EXEMPLE.filter(a => !a.dimensions.includes('social'));
+    const r = generaSessio({ durada: 30, lloc: 'qualsevol', intensitat: 'normal', dimensions: ['social'] }, catalegSenseSocial, paramsProva, []);
+    asserta(!r.ok, 'si només tries social i no hi ha catàleg social, ha de donar error clar');
+    const r2 = generaSessio({ durada: 30, lloc: 'qualsevol', intensitat: 'normal', dimensions: DIMENSIONS.slice() }, CATALEG_EXEMPLE, paramsProva, []);
+    asserta(r2.ok, 'amb totes les dimensions triades i catàleg complet, ha de generar');
   });
 
   prova('degradació: sense activitats socials al catàleg, genera igualment i avisa', () => {

@@ -43,7 +43,6 @@ Cada activitat es representa com un objecte JSON:
   "funcio": ["obertura", "tancament"],
   "durada_min": 3,
   "durada_max": 7,
-  "intensitat": "suau",
   "lloc": ["interior", "exterior"],
   "edat_min": 3,
   "edat_max": 10,
@@ -63,7 +62,6 @@ Cada activitat es representa com un objecte JSON:
 | `funcio` | array | Un o més de: `obertura`, `nucli`, `tancament` |
 | `durada_min` | número | Minuts mínims |
 | `durada_max` | número | Minuts màxims |
-| `intensitat` | string | `suau` \| `mitjana` \| `intensa` |
 | `lloc` | array | Un o més de: `interior`, `exterior` |
 | `edat_min` | número | Edat mínima recomanada |
 | `edat_max` | número | Edat màxima recomanada |
@@ -113,7 +111,6 @@ Regles de compatibilitat:
 Formulari amb:
 - Selector de **durada total** (opcions ràpides: 15/30/45/60 min, o entrada lliure)
 - Selector de **lloc** (interior / exterior / qualsevol)
-- Selector d'**intensitat global** (suau / normal / intensa)
 - Botó gran **"Genera sessió"**
 
 Les edats dels fills es configuren un cop a Paràmetres i s'apliquen sempre.
@@ -163,7 +160,6 @@ Algorisme al generar una sessió:
 2. **Filtres previs** aplicats a tot el catàleg:
    - Compatibilitat d'edat: `edat_min ≤ edat mínima dels fills` **i** `edat_max ≥ edat màxima dels fills`
    - `lloc` compatible amb el seleccionat
-   - `intensitat` compatible (una sessió suau només pot tenir activitats suaus; una intensa pot tenir de qualsevol nivell)
    - Excloure activitats fetes fa menys de X dies (per defecte 7)
    - Penalitzar activitats fetes fa entre 7 i 21 dies (menys probabilitat de sortir)
 
@@ -231,7 +227,7 @@ L'app s'ha de lliurar amb **8-10 activitats d'exemple** al catàleg per poder pr
 
 Respostes de l'usuari a les ambigüitats del brief:
 
-1. **Intensitat "normal"**: escala acumulativa — una sessió *suau* només admet activitats suaus; una *normal* admet suaus i mitjanes; una *intensa* admet els tres nivells.
+1. ~~**Intensitat "normal"**: escala acumulativa...~~ **Superseda per la decisió 10**: el camp `intensitat` s'ha eliminat del tot.
 2. **Sessions curtes**: si en repartir el nucli alguna activitat quedaria per sota de **5 minuts**, es treballa amb **una dimensió menys** en aquesta sessió. La dimensió descartada es tria per **rotació segons historial**: es descarta la més treballada recentment, per mantenir l'equilibri al llarg del temps.
 3. **Dimensions d'obertura i tancament**: qualsevol activitat amb la funció adient serveix, però si hi ha candidates es **prioritzen les que cobreixen dimensions poc treballades** al nucli (especialment quan s'ha descartat una dimensió per sessió curta).
 4. **Edats**: a Paràmetres es guarden les **dates de naixement** dels fills; l'app calcula el rang d'edats automàticament (no cal actualitzar res quan fan anys).
@@ -240,6 +236,7 @@ Respostes de l'usuari a les ambigüitats del brief:
 7. **Dades compartides (2026-07-05, després de les v0.1/v0.2)**: les dades passen a **Firebase Firestore** amb un **compte familiar** (correu + contrasenya), compartides entre tots els terminals en temps real. L'offline es descarta (l'app requereix connexió). L'export/import JSON es manté només com a còpia de seguretat. Vegeu les restriccions revisades a la secció 6.
 8. **Quarta dimensió: social (2026-07-06)**: s'afegeix la dimensió `social` a les tres originals. El nucli de les sessions cobreix totes les dimensions **que tinguin activitats al catàleg**: si una dimensió no té cap activitat de nucli, la sessió es genera igualment sense ella i s'avisa suggerint afegir-ne (degradació en lloc d'error, per no bloquejar els catàlegs existents). La regla dels 5 minuts i la rotació s'apliquen igual amb quatre dimensions: les sessions curtes en descarten més.
 9. **Dimensions seleccionables per sessió (2026-07-06)**: a la pantalla de generar, cada dimensió es pot activar o desactivar (commutadors amb el color de la dimensió; mínim una activa). El nucli només cobreix les dimensions triades que tinguin activitats al catàleg. La selecció es guarda a `peticio.dimensions` perquè «regenera» la respecti. Si cap dimensió triada té activitats de nucli, error clar. Per defecte totes actives; `generaSessio` sense el camp `dimensions` continua cobrint-les totes (compatibilitat).
+10. **Eliminació de la intensitat (2026-07-06)**: es retira el camp `intensitat` de les activitats i el selector d'intensitat de la pantalla de generar. Ja no es filtra per intensitat. Motiu: simplificar el model; l'edat, el lloc, la durada i les dimensions ja donen prou control. Les activitats existents a Firestore poden conservar un camp `intensitat` residual que s'ignora (s'esborra en editar-les); no cal migració.
 
 ---
 

@@ -19,6 +19,7 @@ Colors funcionals que es mantenen (codifiquen les tres dimensions, no s'han de t
 - Mental → blau `#0C447C` sobre `#E6F1FB`
 - Físic → coure `#712B13` sobre `#FAECE7`
 - Espiritual → verd `#085041` sobre `#E1F5EE`
+- Social → magenta `#72243E` sobre `#FBEAF0`
 
 ## 🔤 Tipografia
 

@@ -59,7 +59,7 @@ Cada activitat es representa com un objecte JSON:
 | `nom` | string | Nom curt de l'activitat |
 | `descripcio` | string | Descripció breu |
 | `url` | string | Enllaç a la font original (opcional) |
-| `dimensions` | array | Un o més de: `mental`, `fisic`, `espiritual` |
+| `dimensions` | array | Un o més de: `mental`, `fisic`, `espiritual`, `social` |
 | `funcio` | array | Un o més de: `obertura`, `nucli`, `tancament` |
 | `durada_min` | número | Minuts mínims |
 | `durada_max` | número | Minuts màxims |
@@ -238,6 +238,7 @@ Respostes de l'usuari a les ambigüitats del brief:
 5. **Import/export JSON**: el fitxer inclou **catàleg + historial + paràmetres**. En importar es **fusiona per id**: actualitza activitats existents, afegeix les noves i no esborra res.
 6. **Distribució**: l'app es publicarà a una **URL** (p. ex. GitHub Pages) per usar-la al mòbil com a web afegible a la pantalla d'inici. ~~El localStorage continua sent per dispositiu; la sincronització és l'import/export manual.~~ *(Substituït per la decisió 7.)*
 7. **Dades compartides (2026-07-05, després de les v0.1/v0.2)**: les dades passen a **Firebase Firestore** amb un **compte familiar** (correu + contrasenya), compartides entre tots els terminals en temps real. L'offline es descarta (l'app requereix connexió). L'export/import JSON es manté només com a còpia de seguretat. Vegeu les restriccions revisades a la secció 6.
+8. **Quarta dimensió: social (2026-07-06)**: s'afegeix la dimensió `social` a les tres originals. El nucli de les sessions cobreix totes les dimensions **que tinguin activitats al catàleg**: si una dimensió no té cap activitat de nucli, la sessió es genera igualment sense ella i s'avisa suggerint afegir-ne (degradació en lloc d'error, per no bloquejar els catàlegs existents). La regla dels 5 minuts i la rotació s'apliquen igual amb quatre dimensions: les sessions curtes en descarten més.
 
 ---
 

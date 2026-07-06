@@ -21,6 +21,7 @@
   --mental:#0c447c; --mental-fons:#e6f1fb;
   --fisic:#712b13; --fisic-fons:#faece7;
   --espiritual:#085041; --espiritual-fons:#e1f5ee;
+  --social:#72243e; --social-fons:#fbeaf0;
   --targeta:#ffffff; --vora:#e2e8f0; --error:#a32d2d; --error-fons:#fcebeb;
   --radi:8px; --radi-targeta:14px;
   --ombra:0 4px 6px rgba(15,23,42,.10);
@@ -62,6 +63,7 @@ button{font:inherit;cursor:pointer;border:none;border-radius:var(--radi);transit
 .chip-mental{background:var(--mental-fons);color:var(--mental)}
 .chip-fisic{background:var(--fisic-fons);color:var(--fisic)}
 .chip-espiritual{background:var(--espiritual-fons);color:var(--espiritual)}
+.chip-social{background:var(--social-fons);color:var(--social)}
 .detall{font-size:.95rem;color:var(--tinta-suau);margin:4px 0}
 .avis{background:#faeeda;color:#633806;border-radius:var(--radi);padding:12px 16px;margin:12px 0}
 .error-caixa{background:var(--error-fons);color:var(--error);border-radius:var(--radi);padding:12px 16px;margin:12px 0}
@@ -120,8 +122,8 @@ nav a.actiu{color:var(--blau);background:var(--groc)}
 /* ============================================================
    1. UTILITATS
    ============================================================ */
-const DIMENSIONS = ['mental', 'fisic', 'espiritual'];
-const NOM_DIM = { mental: 'Mental', fisic: 'Físic', espiritual: 'Espiritual' };
+const DIMENSIONS = ['mental', 'fisic', 'espiritual', 'social'];
+const NOM_DIM = { mental: 'Mental', fisic: 'Físic', espiritual: 'Espiritual', social: 'Social' };
 const NOM_BLOC = { obertura: 'Obertura', nucli: 'Nucli', tancament: 'Tancament' };
 const MIN_ACTIVITAT_NUCLI = 5;
 
@@ -206,7 +208,10 @@ const CATALEG_EXEMPLE = [
   { id: 'ball-estatues', nom: 'Ball de les estàtues', descripcio: 'Música i ball lliure; quan la música para, tothom queda immòbil com una estàtua.', url: '', dimensions: ['fisic'], funcio: ['obertura', 'nucli'], durada_min: 5, durada_max: 12, intensitat: 'mitjana', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 10, materials: 'música' },
   { id: 'endevina-so', nom: 'Endevina el so', descripcio: 'Ulls tancats i escolta atenta: quins sons sentim? Qui n’identifica més? Acaba amb un minut de silenci.', url: '', dimensions: ['mental', 'espiritual'], funcio: ['obertura'], durada_min: 3, durada_max: 8, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 12, materials: 'cap' },
   { id: 'estiraments-nuvol', nom: 'Estiraments del núvol', descripcio: 'Estiraments suaus imaginant que som núvols que es desfan: braços amunt, costats, tocar-se els peus.', url: '', dimensions: ['fisic', 'espiritual'], funcio: ['tancament'], durada_min: 3, durada_max: 8, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 12, materials: 'cap' },
-  { id: 'conte-cooperatiu', nom: 'Conte cooperatiu', descripcio: 'Inventem un conte entre tots: cadascú afegeix una frase. Variant: amb personatges sortejats.', url: '', dimensions: ['mental'], funcio: ['nucli', 'tancament'], durada_min: 5, durada_max: 15, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 4, edat_max: 12, materials: 'cap' }
+  { id: 'conte-cooperatiu', nom: 'Conte cooperatiu', descripcio: 'Inventem un conte entre tots: cadascú afegeix una frase. Variant: amb personatges sortejats.', url: '', dimensions: ['mental'], funcio: ['nucli', 'tancament'], durada_min: 5, durada_max: 15, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 4, edat_max: 12, materials: 'cap' },
+  { id: 'joc-mirall', nom: 'El joc del mirall', descripcio: 'Per parelles: un fa moviments lents i l’altre és el seu mirall. Després s’intercanvien els papers.', url: '', dimensions: ['social'], funcio: ['obertura'], durada_min: 3, durada_max: 8, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 12, materials: 'cap' },
+  { id: 'construccio-equip', nom: 'Construcció en equip', descripcio: 'Construïu una torre o cabana entre tots: cadascú posa una peça per torns i cal posar-se d’acord.', url: '', dimensions: ['social', 'mental'], funcio: ['nucli'], durada_min: 8, durada_max: 15, intensitat: 'suau', lloc: ['interior'], edat_min: 3, edat_max: 12, materials: 'blocs, coixins o capses' },
+  { id: 'ronda-compliments', nom: 'La ronda de compliments', descripcio: 'En rotllana, cadascú diu una cosa bonica del company del costat. Acabem amb una abraçada de grup.', url: '', dimensions: ['social', 'espiritual'], funcio: ['nucli', 'tancament'], durada_min: 5, durada_max: 10, intensitat: 'suau', lloc: ['interior', 'exterior'], edat_min: 3, edat_max: 12, materials: 'cap' }
 ];
 
 /* ============================================================
@@ -485,11 +490,14 @@ function pesHistorial(id, mapaUltima, parametres, ara) {
   return 1;
 }
 function minutsPerDimensio(historial, ara, diesFinestra) {
-  const res = { mental: 0, fisic: 0, espiritual: 0 };
+  const res = {};
+  for (const d of DIMENSIONS) res[d] = 0;
   for (const s of historial) {
     if ((ara.getTime() - new Date(s.data).getTime()) / 86400000 > diesFinestra) continue;
     for (const a of s.activitats) {
-      for (const d of a.dimensions) res[d] += a.minuts / a.dimensions.length;
+      for (const d of a.dimensions) {
+        if (res[d] !== undefined) res[d] += a.minuts / a.dimensions.length;
+      }
     }
   }
   return res;
@@ -513,8 +521,11 @@ function generaSessio(peticio, cataleg, parametres, historial, opcions) {
   if (!base.length) return errorSessio('Cap activitat del catàleg encaixa amb aquests filtres (edats ' + edats.min + '-' + edats.max + ', ' + peticio.lloc + ', ' + peticio.intensitat + '). Prova amb altres opcions o afegeix activitats.');
 
   const blocs = calculaBlocs(peticio.durada);
+  const dimsAmbCataleg = DIMENSIONS.filter(d => cataleg.some(a => a.funcio.includes('nucli') && a.dimensions.includes(d)));
+  const senseActivitats = DIMENSIONS.filter(d => !dimsAmbCataleg.includes(d));
+  if (!dimsAmbCataleg.length) return errorSessio('El catàleg no té cap activitat de nucli. Afegeix-ne per poder generar sessions.');
   const treballRecent = minutsPerDimensio(historial || [], ara, parametres.dies_penalitzacio || 21);
-  let dims = baralla(DIMENSIONS);
+  let dims = baralla(dimsAmbCataleg);
   dims.sort((x, y) => treballRecent[x] - treballRecent[y]);
   const descartades = [];
   while (blocs.nucli / dims.length < MIN_ACTIVITAT_NUCLI && dims.length > 1) {
@@ -546,12 +557,15 @@ function generaSessio(peticio, cataleg, parametres, historial, opcions) {
     }
   }
 
-  const minutsSessio = { mental: 0, fisic: 0, espiritual: 0 };
+  const minutsSessio = {};
+  for (const d of DIMENSIONS) minutsSessio[d] = 0;
   for (const x of activitats) {
-    for (const d of x.dimensions) minutsSessio[d] += x.minuts / x.dimensions.length;
+    for (const d of x.dimensions) {
+      if (minutsSessio[d] !== undefined) minutsSessio[d] += x.minuts / x.dimensions.length;
+    }
   }
-  const minimCobert = Math.min(...DIMENSIONS.map(d => minutsSessio[d]));
-  const dimsPrioritaries = new Set(DIMENSIONS.filter(d => minutsSessio[d] === minimCobert));
+  const minimCobert = Math.min(...dimsAmbCataleg.map(d => minutsSessio[d]));
+  const dimsPrioritaries = new Set(dimsAmbCataleg.filter(d => minutsSessio[d] === minimCobert));
   function triaExtrem(funcio, temps) {
     const cands = base.filter(a => a.funcio.includes(funcio) && !usats.has(a.id) && a.durada_min <= temps);
     if (!cands.length) return null;
@@ -573,6 +587,7 @@ function generaSessio(peticio, cataleg, parametres, historial, opcions) {
       creada: ara.toISOString(),
       peticio: { durada: peticio.durada, lloc: peticio.lloc, intensitat: peticio.intensitat },
       dimensions_descartades: descartades,
+      dimensions_sense_activitats: senseActivitats,
       activitats: totes
     }
   };
@@ -776,6 +791,11 @@ function vistaSessio() {
     html += '<div class="avis">Sessió curta: avui deixem la dimensió ' +
       s.dimensions_descartades.map(d => NOM_DIM[d].toLowerCase()).join(' i ') + ' per a la propera.</div>';
   }
+  if (s.dimensions_sense_activitats && s.dimensions_sense_activitats.length) {
+    html += '<div class="avis">El catàleg no té cap activitat de nucli de la dimensió ' +
+      s.dimensions_sense_activitats.map(d => NOM_DIM[d].toLowerCase()).join(' ni ') +
+      '. <a href="#/activitats">Afegeix-ne</a> perquè entri a les sessions.</div>';
+  }
   s.activitats.forEach((item, i) => { html += targetaActivitat(item, i); });
   html += '<button class="gran" id="btn-feta">✔ Marca com a feta</button>';
   html += '<button class="secundari" id="btn-regenera">↻ Regenera la sessió sencera</button>';
@@ -821,7 +841,7 @@ function vistaActivitats() {
   html += '<button class="secundari" id="btn-nova-activitat">+ Afegeix una activitat</button>';
   html += '<input class="cerca" id="cerca-activitats" type="search" placeholder="Cerca per nom o descripció" value="' + esc(estatActivitats.cerca) + '">';
   html += '<div class="segments" id="seg-dim-filtre">';
-  for (const [valor, nom] of [['totes', 'Totes'], ['mental', 'Mental'], ['fisic', 'Físic'], ['espiritual', 'Espiritual']]) {
+  for (const [valor, nom] of [['totes', 'Totes']].concat(DIMENSIONS.map(d => [d, NOM_DIM[d]]))) {
     html += '<button data-dim="' + valor + '"' + (estatActivitats.dimensio === valor ? ' class="actiu"' : '') + '>' + nom + '</button>';
   }
   html += '</div><div id="llista-activitats"></div>';
@@ -1188,8 +1208,8 @@ function executaTests() {
         }
         const cobertes = new Set();
         s.activitats.filter(x => x.bloc === 'nucli').forEach(x => x.dimensions.forEach(d => cobertes.add(d)));
-        const totes = new Set([...cobertes, ...s.dimensions_descartades]);
-        asserta(totes.size === 3, 'dimensions no quadren a ' + etiqueta + ': cobertes ' + [...cobertes] + ', descartades ' + s.dimensions_descartades);
+        const totes = new Set([...cobertes, ...s.dimensions_descartades, ...s.dimensions_sense_activitats]);
+        asserta(totes.size === DIMENSIONS.length, 'dimensions no quadren a ' + etiqueta + ': cobertes ' + [...cobertes] + ', descartades ' + s.dimensions_descartades);
         const total = s.activitats.reduce((sum, x) => sum + x.minuts, 0);
         if (Math.abs(total - peticio.durada) > 2) {
           const saturades = total < peticio.durada
@@ -1253,9 +1273,9 @@ function executaTests() {
     const fa2dies = new Date(Date.now() - 2 * 86400000).toISOString();
     const historial = [{ data: fa2dies, durada: 60, activitats: [{ id: 'antiga-fisica', bloc: 'nucli', dimensions: ['fisic'], minuts: 50 }], dimensions_descartades: [] }];
     for (let i = 0; i < 8; i++) {
-      const r = generaSessio({ durada: 20, lloc: 'qualsevol', intensitat: 'normal' }, CATALEG_EXEMPLE, paramsProva, historial);
+      const r = generaSessio({ durada: 21, lloc: 'qualsevol', intensitat: 'normal' }, CATALEG_EXEMPLE, paramsProva, historial);
       asserta(r.ok, r.error || '');
-      asserta(r.sessio.dimensions_descartades.length === 1, 'una sessió de 20 min hauria de descartar una dimensió');
+      asserta(r.sessio.dimensions_descartades.length === 1, 'una sessió de 21 min hauria de descartar una dimensió, n’ha descartat ' + r.sessio.dimensions_descartades.length);
       asserta(r.sessio.dimensions_descartades[0] === 'fisic', 'hauria de descartar la física (la més treballada), ha descartat ' + r.sessio.dimensions_descartades[0]);
     }
   });
@@ -1337,6 +1357,17 @@ function executaTests() {
     asserta(fusio.afegides === 1 && fusio.actualitzades === 1, 'recompte: ' + fusio.afegides + '/' + fusio.actualitzades);
     const noves = sessionsNoves([{ data: '2026-07-01T10:00:00Z' }], [{ data: '2026-07-01T10:00:00Z' }, { data: '2026-07-02T10:00:00Z' }]);
     asserta(noves.length === 1 && noves[0].data === '2026-07-02T10:00:00Z', 'les sessions repetides no s’han de duplicar');
+  });
+
+  prova('degradació: sense activitats socials al catàleg, genera igualment i avisa', () => {
+    const catalegSenseSocial = CATALEG_EXEMPLE.filter(a => !a.dimensions.includes('social'));
+    for (let i = 0; i < 5; i++) {
+      const r = generaSessio({ durada: 30, lloc: 'qualsevol', intensitat: 'normal' }, catalegSenseSocial, paramsProva, []);
+      asserta(r.ok, 'hauria de generar sense social: ' + (r.error || ''));
+      asserta(r.sessio.dimensions_sense_activitats.length === 1 && r.sessio.dimensions_sense_activitats[0] === 'social',
+        'hauria d’avisar que falta social: ' + JSON.stringify(r.sessio.dimensions_sense_activitats));
+      asserta(!r.sessio.dimensions_descartades.includes('social'), 'social no ha de comptar com a descartada per rotació');
+    }
   });
 
   prova('relaxació: si tot el catàleg és recent, genera igualment', () => {

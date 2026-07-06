@@ -111,9 +111,9 @@ nav a.actiu{color:var(--blau);background:var(--groc)}
   <a href="#/parametres" data-ruta="/parametres">Paràmetres</a>
 </nav>
 <div id="toast"></div>
-<script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-app-compat.js" integrity="sha384-Uv5NOxmI4D88FRrXAe7tQNnStDeQK/nnWkSogirw0xr1ZlJhTpk64V2KxKejMfys" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-auth-compat.js" integrity="sha384-P44Lc4FFaOc/XnFQzAIpmmZZpAstRvYwQLiHHU5LHtlBmblzk5gCbsRCe4hJY6IN" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore-compat.js" integrity="sha384-+mJynELdmYgerSPOJua2KFssOXmteKEsil0rhX2Pb8SkqF7j6lHJszb4/K90oC0u" crossorigin="anonymous"></script>
 <script>
 'use strict';
 
@@ -169,7 +169,7 @@ function idYoutube(url) {
   return null;
 }
 function analitzaEnllac(url) {
-  if (!url) return { tipus: 'cap' };
+  if (!url || !/^https?:\/\//i.test(url)) return { tipus: 'cap' };
   const yt = idYoutube(url);
   if (yt) return { tipus: 'youtube', id: yt, url };
   if (/(^|\.)instagram\.com\//i.test(url)) return { tipus: 'instagram', url };
@@ -345,6 +345,23 @@ function validaCopia(d) {
   }
   return null;
 }
+function filtraActivitatsValides(cataleg) {
+  const valides = [];
+  const rebutjades = [];
+  for (const a of cataleg) {
+    if (a && typeof a.id === 'string' && Array.isArray(a.dimensions) && Array.isArray(a.funcio) &&
+        Array.isArray(a.lloc) && validaActivitat(a).length === 0) {
+      valides.push(a);
+    } else {
+      rebutjades.push(a && a.id ? a.id : '(sense id)');
+    }
+  }
+  return { valides, rebutjades };
+}
+function filtraSessionsValides(historial) {
+  return historial.filter(s => s && typeof s.data === 'string' && !isNaN(new Date(s.data).getTime()) &&
+    Array.isArray(s.activitats) && typeof s.durada === 'number');
+}
 function fusionaCataleg(actual, importat) {
   const idsActuals = new Set(actual.map(a => a.id));
   const cataleg = actual.map(a => importat.find(x => x.id === a.id) || a);
@@ -386,14 +403,17 @@ async function importaDades(objecte) {
   try {
     localStorage.setItem('herois.copia-previa', JSON.stringify({ versio: 1, guardadaEl: new Date().toISOString(), parametres: dades.parametres, cataleg: dades.cataleg, historial: dades.historial }));
   } catch (e) { }
-  const fusio = fusionaCataleg(dades.cataleg, objecte.cataleg);
-  const noves = sessionsNoves(dades.historial, objecte.historial);
+  const filtre = filtraActivitatsValides(objecte.cataleg);
+  const fusio = fusionaCataleg(dades.cataleg, filtre.valides);
+  const noves = sessionsNoves(dades.historial, filtraSessionsValides(objecte.historial));
   const lot = bd.batch();
   lot.set(refFamilia, { versio: 1, parametres: objecte.parametres });
   for (const a of fusio.cataleg) lot.set(refFamilia.collection('activitats').doc(a.id), a);
   for (const s of noves) lot.set(refFamilia.collection('sessions').doc(), s);
   await lot.commit();
-  toast('Còpia importada: ' + fusio.afegides + ' activitats noves, ' + fusio.actualitzades + ' actualitzades i ' + noves.length + ' sessions afegides.');
+  let resum = 'Còpia importada: ' + fusio.afegides + ' activitats noves, ' + fusio.actualitzades + ' actualitzades i ' + noves.length + ' sessions afegides.';
+  if (filtre.rebutjades.length) resum += ' S’han rebutjat ' + filtre.rebutjades.length + ' activitats no vàlides (' + filtre.rebutjades.slice(0, 3).join(', ') + (filtre.rebutjades.length > 3 ? '…' : '') + ').';
+  toast(resum);
 }
 
 autenticacio.onAuthStateChanged(async u => {
@@ -1269,6 +1289,10 @@ function executaTests() {
     asserta(analitzaEnllac('https://www.instagram.com/reel/CxYz123/').tipus === 'instagram', 'instagram reel');
     asserta(analitzaEnllac('https://exemple.com/joc').tipus === 'altre', 'enllaç genèric');
     asserta(analitzaEnllac('').tipus === 'cap', 'sense enllaç');
+    asserta(analitzaEnllac('javascript:alert(1)').tipus === 'cap', 'javascript: ha de quedar bloquejat');
+    asserta(analitzaEnllac('javascript:x//x.instagram.com/').tipus === 'cap', 'javascript: disfressat d’Instagram bloquejat');
+    asserta(mediaHtml('javascript:alert(1)', true) === '', 'javascript: no genera cap html');
+    asserta(analitzaEnllac('data:text/html,x').tipus === 'cap', 'data: bloquejat');
     asserta(/youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/.test(mediaHtml('https://youtu.be/dQw4w9WgXcQ', true)), 'incrusta el reproductor de YouTube');
     asserta(mediaHtml('https://youtu.be/dQw4w9WgXcQ', false).indexOf('<iframe') === -1, 'sense incrustar no posa iframe');
     asserta(mediaHtml('https://www.instagram.com/reel/CxYz123/', true).indexOf('<iframe') === -1, 'Instagram mai incrusta iframe');
@@ -1279,6 +1303,28 @@ function executaTests() {
     asserta(validaCopia({ versio: 2 }) !== null, 'versió desconeguda hauria de fallar');
     asserta(validaCopia({ versio: 1, parametres: { fills: [] }, cataleg: [], historial: [] }) === null, 'còpia mínima vàlida');
     asserta(validaCopia({ versio: 1, parametres: { fills: [] }, cataleg: [{ id: 'x' }], historial: [] }) !== null, 'activitat sense nom hauria de fallar');
+  });
+
+  prova('import: rebutja activitats i sessions no vàlides', () => {
+    const bona = CATALEG_EXEMPLE[0];
+    const dolentes = [
+      Object.assign({}, bona, { id: 'url-maligna', url: 'javascript:alert(1)' }),
+      Object.assign({}, bona, { id: 'sense-nom', nom: '' }),
+      Object.assign({}, bona, { id: 'durades-males', durada_min: 20, durada_max: 3 }),
+      { id: 'esquelet' },
+      null
+    ];
+    const filtre = filtraActivitatsValides([bona].concat(dolentes));
+    asserta(filtre.valides.length === 1 && filtre.valides[0].id === bona.id, 'només la bona ha de passar: ' + filtre.valides.length);
+    asserta(filtre.rebutjades.length === 5, 'les 5 dolentes rebutjades: ' + filtre.rebutjades.join(','));
+    const sessions = filtraSessionsValides([
+      { data: '2026-07-01T10:00:00Z', durada: 30, activitats: [] },
+      { data: 'no-una-data', durada: 30, activitats: [] },
+      { data: '2026-07-02T10:00:00Z', durada: 'trenta', activitats: [] },
+      { data: '2026-07-03T10:00:00Z', durada: 30 },
+      null
+    ]);
+    asserta(sessions.length === 1, 'només la sessió ben formada ha de passar: ' + sessions.length);
   });
 
   prova('còpia de seguretat: fusió sense pèrdues', () => {
